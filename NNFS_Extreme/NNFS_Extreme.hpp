@@ -4,11 +4,13 @@
 #pragma once
 
 #include <iostream>
-
+#include <vector>
 // TODO: Reference additional headers your program requires here.
-
-class Network {
-	int num_layers;
-	std::vector<int> sizes;
-	//std::vector
-};
+//
+//
+//
+//class Network {
+//	int num_layers;
+//	std::vector<int> sizes;
+//	//std::vector
+//};
