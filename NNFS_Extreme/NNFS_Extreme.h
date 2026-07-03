@@ -6,3 +6,9 @@
 #include <iostream>
 
 // TODO: Reference additional headers your program requires here.
+
+class Network {
+	int num_layers;
+	std::vector<int> sizes;
+	//std::vector
+};
