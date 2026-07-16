@@ -13,3 +13,6 @@ CMakeCache.txt
 CMakeFiles/
 CMakeSettings.json
 CMakeUserPresets.json
+
+data/*.bin
+data/

@@ -1,23 +1,13 @@
-﻿// NNFS_Extreme.cpp : Defines the entry point for the application.
-#include "Value.hpp"
-#include "NN.hpp"
+﻿#include "NN.hpp"
+#include "data_loaders.hpp"
 
 int main() {
 
-	auto nn = Network({ 3, 2, 1 });
-	for (const auto& mat : nn.biases) {
-		printMatrix(mat);
-	}
-	for (const auto& mat : nn.weights) {
-		printMatrix(mat);
-	}
-	//auto a = newValue(3);
-	//auto c = a - 7.0f;
-	//auto d = c * 3;
-	//auto e = d / 3;
-	//auto f = e->pow(2);
-	//auto g = f->operator-();
-	//a->info(); c->info(); d->info(); e->info(), f->info(); g->info();
-	//return 0;
+	auto training_data = load_training_data("data/train_images.bin", "data/train_labels.bin", 50000);
+	auto test_data = load_test_data("data/test_images.bin", "data/test_labels.bin", 10000);
 
+	auto nn = Network({ 784, 30, 10 });
+	nn.SGD(training_data, 30, 10, 3.0f, test_data);
+
+	return 0;
 }
