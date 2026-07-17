@@ -14,5 +14,7 @@ CMakeFiles/
 CMakeSettings.json
 CMakeUserPresets.json
 
+.vscode/
+
 data/*.bin
 data/

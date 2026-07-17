@@ -5,13 +5,19 @@
 
 #include <Spalten/Matrix.hpp>
 
+#include <stdexcept>
+#include <iostream>
+
 using VPM = std::vector<std::pair<Matrix<float>, Matrix<float>>>;
 
 VPM load_training_data(
 	const std::string& img_path, const std::string& label_path, size_t num_samples) {
 
 	std::ifstream img_file(img_path, std::ios::binary);
+	if (!img_file.is_open()) throw std::runtime_error("Could not open " + img_path);
+	
 	std::ifstream label_file(label_path, std::ios::binary);
+	if (!label_file.is_open()) throw std::runtime_error("Could not open " + label_path);
 
 	VPM data;
 	data.reserve(num_samples);
@@ -38,7 +44,10 @@ std::vector<std::pair<Matrix<float>, int>> load_test_data(
 	const std::string& img_path, const std::string& label_path, size_t num_samples) {
 
 	std::ifstream img_file(img_path, std::ios::binary);
+	if (!img_file.is_open()) throw std::runtime_error("Could not open " + img_path);
+	
 	std::ifstream label_file(label_path, std::ios::binary);
+	if (!label_file.is_open()) throw std::runtime_error("Could not open " + label_path);
 
 	std::vector<std::pair<Matrix<float>, int>> data;
 	data.reserve(num_samples);

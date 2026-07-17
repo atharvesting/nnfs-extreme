@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+
 #include <Spalten/Matrix.hpp>
 
 using VPM = std::vector<std::pair<Matrix<float>, Matrix<float>>>;
