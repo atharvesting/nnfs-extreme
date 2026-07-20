@@ -17,7 +17,7 @@ int main() {
 	std::cout << "Network initialized.\n\n";
 
 	auto weights_and_biases = nn.SGD(training_data, 30, 10, 2.0f, {});
-	Matrix<float> output = nn.feedforward( Matrix<float>(10, 1, std::vector<float>{0, 0, 0, 0, 1, 0, 0, 0, 0, 0}) );
+	Matrix<float> output = nn.feedforward( Matrix<float>(10, 1, std::vector<float>{0, 0, 0, 0, 0, 0, 1, 0, 0, 0}) );
 
 	std::ofstream pixel_data("data/output/pixel_data.bin", std::ios::binary);
 	if (!pixel_data.is_open()) 

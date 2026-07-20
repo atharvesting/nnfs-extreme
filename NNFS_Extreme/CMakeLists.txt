@@ -5,7 +5,6 @@
 add_executable (NNFS_Extreme
     "NNFS_Extreme.cpp"
     "NN.cpp"
-    "Value.cpp"
     "data_loaders.cpp"
     "activation_functions.cpp"
 )
