@@ -18,3 +18,5 @@ CMakeUserPresets.json
 
 data/*.bin
 data/
+
+nnfs-venv/

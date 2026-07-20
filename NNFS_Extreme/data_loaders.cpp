@@ -2,16 +2,17 @@
 #include <utility>
 #include <string>
 #include <vector>
-
-#include <Spalten/Matrix.hpp>
-
 #include <stdexcept>
 #include <iostream>
+#include <Spalten/Matrix.hpp>
+#include "data_loaders.hpp"
 
 using VPM = std::vector<std::pair<Matrix<float>, Matrix<float>>>;
 
-VPM load_training_data(
-	const std::string& img_path, const std::string& label_path, size_t num_samples) {
+VPM MNIST_loader::load_training_data(const std::string& img_path,
+									 const std::string& label_path, 
+									 size_t num_samples, 
+									 bool flip_labels) {
 
 	std::ifstream img_file(img_path, std::ios::binary);
 	if (!img_file.is_open()) throw std::runtime_error("Could not open " + img_path);
@@ -35,12 +36,15 @@ VPM load_training_data(
 		for (int j = 0; j < 784; j++) img[j] = img_buf[j];
 		for (int j = 0; j < 10; j++) label[j] = label_buf[j];
 
-		data.push_back({ std::move(img), std::move(label) });
+		if (flip_labels == false)
+			data.push_back({ std::move(img), std::move(label) });
+		else
+			data.push_back({ std::move(label), std::move(img) });
 	}
 	return data;
 }
 
-std::vector<std::pair<Matrix<float>, int>> load_test_data(
+std::vector<std::pair<Matrix<float>, int>> MNIST_loader::load_test_data(
 	const std::string& img_path, const std::string& label_path, size_t num_samples) {
 
 	std::ifstream img_file(img_path, std::ios::binary);
