@@ -1,7 +1,8 @@
 #include <vector>	 // vector
 #include <assert.h>	 // assert
 #include <random>	 // shuffle, mt19937, random_device
-#include <algorithm> // max_element, min, 
+#include <algorithm> // max_element, min
+#include <fstream> 	 // ifstream
 #include <Spalten/Matrix.hpp>
 #include "NN.hpp"
 #include "activation_functions.hpp"
@@ -15,8 +16,8 @@ Network::Network(std::vector<int> nw_sizes)
 
 	// biases and weights are vectors of Matrix objects.
 	// The ith Matrix represents the weights/biases of the (i+1)th layer.
-	biases.reserve(num_layers - 1);
-	weights.reserve(num_layers - 1);
+	biases.reserve(num_param_layers);
+	weights.reserve(num_param_layers);
 
 	// Matrix Initialization
 	for (size_t i = 1; i < num_layers; i++)
@@ -34,6 +35,52 @@ Network::Network(std::vector<int> nw_sizes)
 	}
 }
 
+Network::Network(const std::string& model_path) {
+	std::ifstream model(model_path, std::ios::binary);
+
+	if (!model.is_open()) throw std::runtime_error("Couldn't open model file.");
+
+	// Number of layers
+	model.read( reinterpret_cast<char*>(&num_layers), sizeof(size_t) );
+	num_param_layers = num_layers - 1;
+
+	// Neurons per layer
+	sizes.resize(num_layers);
+	model.read( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(int) );
+
+	biases.reserve(num_param_layers);
+	weights.reserve(num_param_layers);
+
+	// Matrix Initialization
+	for (size_t i = 1; i < num_layers; i++)
+	{
+		int y{sizes[i]};
+		biases.emplace_back(mat_random_normal(y, 1));
+	}
+	for (size_t i = 0; i < num_layers - 1; i++)
+	{
+		int x{sizes[i]};
+		int y{sizes[i + 1]};
+		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
+		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
+		weights.emplace_back(mat_random_normal(y, x));
+	}
+
+	// Weights
+	for (auto& weight : weights) {
+		// model.read( reinterpret_cast<char*>(&weight.rows), sizeof(size_t));
+		// model.read( reinterpret_cast<char*>(&weight.cols), sizeof(size_t));
+		model.read( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float));
+	}
+
+	// Biases
+	for (auto& bias : biases) {
+		// model.read( reinterpret_cast<char*>(&bias.rows), sizeof(size_t));
+		// model.read( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));
+		model.read( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float));
+	}
+}
+
 /// @brief Stochastic Gradient Descent (SGD) algorithm for training the neural network.
 /// @param training_data A vector of TrainingSample pairs (input matrix, output matrix).
 /// @param epochs Number of epochs to train for.
@@ -41,7 +88,7 @@ Network::Network(std::vector<int> nw_sizes)
 /// @param eta Learning rate.
 /// @param test_data A vector of TestSample pairs (input matrix, digit label).
 /// @return A pair containing the final weights and biases after training.
-std::pair<std::vector<Matrix<float>>, std::vector<Matrix<float>>> Network::SGD(TrainingData training_data, int epochs,
+void Network::SGD(TrainingData training_data, int epochs,
 				  int min_batch_size, float eta, const TestData& test_data)
 {
 	assert(min_batch_size > 0);
@@ -84,7 +131,6 @@ std::pair<std::vector<Matrix<float>>, std::vector<Matrix<float>>> Network::SGD(T
 		else
 			std::cout << std::format("Epoch {} complete", j) << "\n";
 	}
-	return std::make_pair(weights, biases);
 }
 
 /// @brief Updates the network's weights and biases using a mini-batch of training data.

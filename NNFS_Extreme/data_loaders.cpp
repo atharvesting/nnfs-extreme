@@ -6,6 +6,7 @@
 #include <iostream>
 #include <Spalten/Matrix.hpp>
 #include "data_loaders.hpp"
+#include "NN.hpp"
 
 using VPM = std::vector<std::pair<Matrix<float>, Matrix<float>>>;
 
@@ -69,4 +70,30 @@ std::vector<std::pair<Matrix<float>, int>> MNIST_loader::load_test_data(
 		data.push_back({ std::move(img), label_val });
 	}
 	return data;
+}
+
+void Data::export_model(Network& net, const std::string& model_path) {
+	std::ofstream model(model_path, std::ios::binary);
+
+	if (!model.is_open()) throw std::runtime_error("Couldn't open model output file.");
+
+	// Number of layers
+	model.write( reinterpret_cast<char*>(&net.num_layers), sizeof(size_t) );
+
+	// Neurons per layer
+	model.write( reinterpret_cast<char*>(net.sizes.data()), net.num_layers * sizeof(int) );
+
+	// Weights
+	for (auto& weight : net.weights) {
+		model.write( reinterpret_cast<char*>(&weight.rows), sizeof(size_t));
+		model.write( reinterpret_cast<char*>(&weight.cols), sizeof(size_t));
+		model.write( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float));
+	}
+
+	// Biases
+	for (auto& bias : net.biases) {
+		model.write( reinterpret_cast<char*>(&bias.rows), sizeof(size_t));
+		model.write( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));
+		model.write( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float));
+	}
 }

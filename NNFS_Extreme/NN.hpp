@@ -18,10 +18,16 @@ public:
 	std::vector<int> sizes;
 	std::vector<Matrix<float>> biases;
 	std::vector<Matrix<float>> weights;
+	
+	std::vector<Matrix<float>> activations_buf;
+	std::vector<Matrix<float>> zs_buf;
+	std::vector<Matrix<float>> nabla_w_buf;
+	std::vector<Matrix<float>> nabla_b_buf;
 
-	Network(std::vector<int> sizes);
+	explicit Network(std::vector<int> sizes);
+	explicit Network(const std::string& model_path);
 	Matrix<float> feedforward(Matrix<float> a) const;
-	std::pair<std::vector<Matrix<float>>, std::vector<Matrix<float>>> SGD(TrainingData training_data, int epochs, int min_batch_size, float eta, const TestData& test_data);
+	void SGD(TrainingData training_data, int epochs, int min_batch_size, float eta, const TestData& test_data);
 
 private:
 	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, float eta);

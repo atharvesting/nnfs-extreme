@@ -19,9 +19,9 @@ namespace act {
 	float leaky_relu_prime(float z) { return z > 0.0F ? 1.0F : 0.01F; }
 
 #define ACTIVATION_FUNC_MAT(func) \
-	Matrix<float> func(const Matrix<float>& mat) { \
+	void func(const Matrix<float>& mat, Matrix<float>& dest) { \
 		float (*scalar_func)(float) = act::func; \
-		return activation_func_mat(mat, [scalar_func](float z){ return scalar_func(z); }); \
+		act::activation_func_mat(mat, dest, [scalar_func](float z){ return scalar_func(z); }); \
 	}
 	ACTIVATION_FUNC_MAT(sigmoid)
 	ACTIVATION_FUNC_MAT(sigmoid_prime)
