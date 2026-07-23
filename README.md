@@ -2,7 +2,7 @@
 
 > NNFS from scratch. Actually.
 
-This is an educational project (MVP completed) aimed at building a neural network starting by literally writing the dot product function :)
+This is an educational project (MVP completed) aimed at building a neural network by literally starting with the dot product function :)
 and building my way from the bottom up towards a performant NN that can classify MNIST digit pictures. However, this engine can generally work on for any dataset with some light tweaking.
 
 This project is heavily inspired by [Michael Nielsen](https://michaelnielsen.org/)'s [book on Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/) ,
