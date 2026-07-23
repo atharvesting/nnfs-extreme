@@ -7,6 +7,7 @@ add_executable (NNFS_Extreme
     "NN.cpp"
     "data_loaders.cpp"
     "activation_functions.cpp"
+    "utils.hpp"
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
