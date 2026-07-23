@@ -8,7 +8,6 @@
 
 ### Minor
 - [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
-- [ ] (NNFS_Extreme/NN.cpp) Set a file naming standard for model exports - `[data]_[topology-order]_ep[epochs]_lr[learning-rate]_l[loss(optional)].bin`
 
 ### Documentation
 - [ ] (examples/standard_mnist.hpp) Examples: Standard (image-digit) MNIST training and eval workflow.
@@ -17,6 +16,7 @@
 - [ ] (README.md) Short example codeblock showcasing API.
 
 ### Backlog
-- [ ] 
+- [ ] Additional storage for weights and biases for the best performing parameters.
 
 ### Completed ✓
+- [x] (NNFS_Extreme/NN.cpp) Set a file naming standard for model exports - `[data]_[topology-order]_ep[epochs]_lr[learning-rate]_l[loss(optional)].bin` (2026-07-24)

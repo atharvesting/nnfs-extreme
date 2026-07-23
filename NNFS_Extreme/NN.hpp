@@ -18,6 +18,9 @@ public:
 	std::vector<int> sizes;
 	std::vector<Matrix<float>> biases;
 	std::vector<Matrix<float>> weights;
+	bool test_data_provided;
+	int epochs;
+	int eta;
 	
 	// '_buf' postfix indicating that the container is reused to avoid allocation overhead.
 	std::vector<Matrix<float>> activations_buf;
@@ -53,7 +56,7 @@ public:
 
 	/// @brief Export the model parameters as a custom binary. Imported using the file constructor.
 	/// @param model_path The path+filename as the export location.
-	void export_model(const std::string& model_path);
+	void export_model(std::string model_path, std::string dataset_name);
 
 private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.

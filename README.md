@@ -57,3 +57,7 @@ I would like to be absolutely transparent with the fact that I used AI tools for
 optimally to C++. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I 
 made sure to understand each line of code and comment it throughout to document my understanding. I regularly post blogs and to put this 
 understanding into my own words for everyone.
+
+---
+
+Started: 2026-07-29

@@ -6,11 +6,12 @@
 #include <Spalten/Matrix.hpp>
 #include "NN.hpp"
 #include "activation_functions.hpp"
+#include "utils.hpp"
 
 Network::Network(std::vector<int> nw_sizes)
 	: num_layers(nw_sizes.size()), 
 	  sizes(std::move(nw_sizes)), 
-	  num_param_layers(num_layers - 1)
+	  num_param_layers(num_layers - 1), eta(0), epochs(0), test_data_provided(true)
 {
 	assert(sizes.size() > 1);
 
@@ -44,7 +45,7 @@ Network::Network(std::vector<int> nw_sizes)
 	
 }
 
-Network::Network(const std::string& model_path) {
+Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_provided(true) {
 	std::ifstream model(model_path, std::ios::binary);
 
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model file.");
@@ -99,6 +100,10 @@ Network::Network(const std::string& model_path) {
 void Network::SGD(TrainingData training_data, int epochs,
 				  int min_batch_size, float eta, const TestData& test_data)
 {
+	if (test_data.empty()) test_data_provided = false;
+	this->eta = eta; 
+	this->epochs = epochs;
+
 	assert(min_batch_size > 0);
 	assert(epochs > 0);
 	assert(eta > 0.0F);
@@ -165,10 +170,6 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, f
 			Y(r, s) = y[r];
 	}
 
-	// activations_buf.clear();
-	// zs_buf.clear();
-	// activations_buf.reserve(num_param_layers + 1);
-	// zs_buf.reserve(num_param_layers);
 	activations_buf[0] = X;
 
 	for (auto& nabla_w : nabla_w_buf) nabla_w.fill_zeros();
@@ -284,8 +285,22 @@ int Network::evaluate(const TestData& test_data) const
 	return sum;
 }
 
-void Network::export_model(const std::string& model_path) {
-	std::ofstream model(model_path, std::ios::binary);
+// Use forward dashes!
+void Network::export_model(std::string model_directory, std::string dataset_name) {
+	std::string model_full_path(std::move(dataset_name));
+
+	model_full_path += "_";
+	for (const auto& size : sizes) {
+		model_full_path += std::to_string(size) + "-";
+	}
+	model_full_path.back() = '_';
+	model_full_path += "ep" + std::to_string(epochs) + "_lr" + float_to_string(eta);
+	// TODO: Support for Loss in the filename
+
+	if (model_directory.back() != '/') model_directory.append("/");
+	model_full_path = model_directory + model_full_path + ".bin";
+
+	std::ofstream model(model_full_path, std::ios::binary);
 
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model output file.");
 
