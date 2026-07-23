@@ -22,6 +22,10 @@ namespace act {
 	void func(const Matrix<float>& mat, Matrix<float>& dest) { \
 		float (*scalar_func)(float) = act::func; \
 		act::activation_func_mat(mat, dest, [scalar_func](float z){ return scalar_func(z); }); \
+	} \
+	Matrix<float> func(const Matrix<float>& mat) { \
+		float (*scalar_func)(float) = act::func; \
+		return act::activation_func_mat(mat, [scalar_func](float z){ return scalar_func(z); }); \
 	}
 	ACTIVATION_FUNC_MAT(sigmoid)
 	ACTIVATION_FUNC_MAT(sigmoid_prime)

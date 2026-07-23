@@ -18,6 +18,7 @@ if(MSVC)
     # Append high-performance execution flags to global CXX flags for Release modes
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " /O2 /Oi /Ot /Oy /GL /arch:AVX2 /fp:fast")
     string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /O2 /Oi /Ot /Oy /GL /arch:AVX2 /fp:fast")
+    string(APPEND CMAKE_CXX_FLAGS_DEBUG " /0d")
     
     # Enable Link-Time Code Generation globally for optimized configurations
     string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " /LTCG")
@@ -35,5 +36,4 @@ endif()
 
 
 add_subdirectory("third_party/Spalten")
-
 add_subdirectory ("NNFS_Extreme")

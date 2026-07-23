@@ -14,3 +14,4 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 target_link_libraries(NNFS_Extreme PRIVATE Spalten)
+
