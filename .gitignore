@@ -19,9 +19,6 @@ CMakeUserPresets.json
 data/*.bin
 data/
 
-# NNFS_Extreme/NNFS_Extreme.cpp
-# NNFS_Extreme/NNFS_Extreme.hpp
-
 nnfs-venv/
 
 MNIST_CV/model/

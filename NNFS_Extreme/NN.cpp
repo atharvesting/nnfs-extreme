@@ -4,6 +4,7 @@
 #include <algorithm> // max_element, min
 #include <fstream> 	 // ifstream, ofstream
 #include <Spalten/Matrix.hpp>
+#include <Spalten/Utils.hpp>
 #include "NN.hpp"
 #include "activation_functions.hpp"
 #include "utils.hpp"
@@ -118,8 +119,11 @@ void Network::SGD(TrainingData training_data, int epochs,
 	size_t n_test = test_data.size();	   // Number of testing pairs
 	size_t n_train = training_data.size(); // Number of training pairs
 
+	Timer t;
+	float elap{0.0F};
 	for (int j = 0; j < epochs; j++)
 	{
+		t.reset();
 		// Shuffling ensures that a lot of similar data isn't batched together (due to sorted datasets), 
 		// 		which can lead to slower descent and overfitting.
 		// It also ensures that the model sees a diverse set of examples in each epoch.
@@ -142,11 +146,12 @@ void Network::SGD(TrainingData training_data, int epochs,
 		{
 			update_mini_batch(mini_batch, eta);
 		}
-
+		elap += t.elapsed();
+		float avg = elap / static_cast<float>(j + 1);
 		if (!test_data.empty())
-			std::cout << std::format("Epoch {}: {} / {}", j, evaluate(test_data), n_test) << "\n";
+			std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluate(test_data), n_test, avg) << "\n";
 		else
-			std::cout << std::format("Epoch {} complete", j) << "\n";
+			std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
 	}
 }
 
@@ -196,14 +201,21 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, f
 
 void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_result)
 {
-	Matrix<float> activation(X); // Number of neurons in input layer = 10 * Minibatch size = 10x10
+	Matrix<float> activation(X);
 
 	// Feedforward pass: Compute the activations and weighted inputs (z) for each layer.
 	for (size_t i = 0; i < biases.size(); i++)
 	{
 		const Matrix<float> &b = biases[i];			// [neurons x 1]
 		const Matrix<float> &w = weights[i];		// [neurons x prev_neurons]
-		Matrix<float> z = (w * activation) + b; 	// [neurons x m] 128x10 times 10x10 = 128x10 + 128x1 = 128x10
+
+		Matrix<float> z(b.rows, activation.cols);
+		for (size_t r = 0; r < z.rows; r++) {
+			for (size_t c = 0; c < z.cols; c++) {
+				z(r, c) = b(r, 0);
+			}
+		}
+		gemm(1.0F, w, activation, 1.0F, z); 	// [neurons x m]
 		zs_buf[i] = z;
 		activation = act::sigmoid(z);
 		activations_buf[i + 1] = activation;

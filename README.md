@@ -7,7 +7,8 @@ and building my way from the bottom up towards a performant NN that can classify
 
 This project is heavily inspired by [Michael Nielsen](https://michaelnielsen.org/)'s [book on Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/) ,
 as I have not only used this book to learn about deep learning, but also translated its implementation to blazing fast C++. As this is the 
-first time I was learning about neural networks, I am perfectly happy with this approach.
+first time I was learning about neural networks, I am perfectly happy with this approach. If you feel curious about my journey of 
+improving training speed and inference, see the notes I kept on performance (I started tracking this too late `sad_emoji`).
 
 After successfully achieving 95% accuracy in digit classification, as an experiment, I swapped the input and outputs of the training data and got the network (with only 1 hidden layer containing 30 neurons!) to output some really nice images ([visualized using Python](scripts/pixelarray_to_image.py)) of digits!
 

@@ -7,7 +7,7 @@
 * In order to run this function, use `include "examples/standard_mnist.hpp"` inside NNFS_Extreme.cpp
 * and run standard_mnist() inside the main function. Feel free to modify this function to your liking.
 */
-void standard_mnist() {
+void standard_mnist(int epochs=30, int mini_batch_size=10, float learning_rate=2.0F) {
 	std::cout << "Running standard MNIST example!" << std::endl;
 
 	auto training_data = MNIST_loader::load_training_data("data/mnist_train_images.bin", "data/mnist_train_labels.bin", 50000, false);
@@ -19,6 +19,6 @@ void standard_mnist() {
 	auto nn = Network(std::vector<int>{ 784, 30, 10 });
 	std::cout << "Network initialized.\n\n";
 
-	nn.SGD(training_data, 30, 10, 2.0F, test_data);
+	nn.SGD(training_data, epochs, mini_batch_size, learning_rate, test_data);
 
 }
