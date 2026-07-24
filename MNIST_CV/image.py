@@ -1,0 +1,1 @@
+# The image processing pipeline will reside here

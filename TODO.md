@@ -19,4 +19,5 @@
 - [ ] Additional storage for weights and biases for the best performing parameters.
 
 ### Completed ✓
-- [x] (NNFS_Extreme/NN.cpp) Set a file naming standard for model exports - `[data]_[topology-order]_ep[epochs]_lr[learning-rate]_l[loss(optional)].bin` (2026-07-24)
+- [x] (MNIST_CV/) Write foundational OpenCV code for hand detection and drawing. (2026-07-24)
+- [x] (NNFS_Extreme/NN.cpp) Set a file naming standard for model exports - `[data]_[topology-order]_ep[epochs]_lr[learning-rate]_l[loss(optional)].bin`. (2026-07-24)

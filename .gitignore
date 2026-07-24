@@ -20,3 +20,7 @@ data/*.bin
 data/
 
 nnfs-venv/
+
+MNIST_CV/model/
+
+__pycache__/

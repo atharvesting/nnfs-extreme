@@ -9,7 +9,7 @@ This project is heavily inspired by [Michael Nielsen](https://michaelnielsen.org
 as I have not only used this book to learn about deep learning, but also translated its implementation to blazing fast C++. As this is the 
 first time I was learning about neural networks, I am perfectly happy with this approach.
 
-After successfully achieving 95% accuracy in digit classification, as an experiment, I swapped the input and outputs of the training data and got the network to output some really nice images ([visualized using Python](scripts/pixelarray_to_image.py)) of digits!
+After successfully achieving 95% accuracy in digit classification, as an experiment, I swapped the input and outputs of the training data and got the network (with only 1 hidden layer containing 30 neurons!) to output some really nice images ([visualized using Python](scripts/pixelarray_to_image.py)) of digits!
 
 <table width="100%">
   <tr>
@@ -52,6 +52,13 @@ ML mathematics, Concurrency, Computer Vision, all the way to resource-efficient-
 More about this to be documented soon!
 
 ---
+### References
+
+- https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python
+- https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb
+
+---
+### AI use disclosure
 
 I would like to be absolutely transparent with the fact that I used AI tools for debugging and helping me understand how Python translates 
 optimally to C++. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I 
@@ -60,4 +67,5 @@ understanding into my own words for everyone.
 
 ---
 
-Started: 2026-07-29
+- Started: 2026-07-29
+- Languages: C++, Python
