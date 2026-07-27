@@ -11,6 +11,20 @@ using TestSample		= std::pair<Matrix<float>, int>;
 // Traditional MNIST: TestData simply contains a vector of TestSample's
 using TestData			= std::vector<TestSample>;
 
+struct Buffers {
+	std::vector<Matrix<float>> activations;
+	std::vector<Matrix<float>> zs;
+	std::vector<Matrix<float>> nabla_w;
+	std::vector<Matrix<float>> nabla_b;
+
+	Buffers(int num_layers) {
+		activations.reserve(num_layers);
+		zs.reserve(num_layers - 1);
+		nabla_w.reserve(num_layers - 1);
+		nabla_b.reserve(num_layers - 1);
+	}
+};
+
 class Network {
 public:
 	size_t num_layers;
@@ -62,12 +76,12 @@ private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.
 	/// @param mini_batch A vector of TrainingSample pairs (input matrix, output matrix).
 	/// @param eta Learning rate.
-	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, float eta);
+	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, Buffers& buffers, float eta);
 
 	/// @brief Computes the gradients of the cost function with respect to the weights and biases.
 	/// @param X Input matrix.
 	/// @param Y True labels.
-	void backprop(const Matrix<float>& X, const Matrix<float>& actual_result);
+	void backprop(const Matrix<float>& X, const Matrix<float>& actual_result, Buffers& buffers);
 
 	/// @brief Evaluates the network on the test data.
 	/// @param test_data A vector of TestSample pairs (input matrix, digit label).
@@ -86,3 +100,4 @@ private:
 	static Matrix<float> row_sum(const Matrix<float>& m);
 	
 };
+

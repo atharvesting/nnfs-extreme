@@ -55,8 +55,9 @@ More about this to be documented soon!
 ---
 ### References
 
-- https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python
-- https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb
+- [MediaPipe Hand Landmarker Python Docs](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python)
+- [Hand Landmarker Example Notebook](https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb)
+- [C++ Thread Pool Implementation](https://stackoverflow.com/a/32593825)
 
 ---
 ### AI use disclosure

@@ -2,6 +2,12 @@
 
 2026-07-25
 ---
+- Using a reusable buffer for storing Mini-batches (no improvements)
+    - Previously, a container supposed to hold a batch of training samples was being declared in every epoch loop along with memory reservation.
+    - Since the size of the mini-batches is known at the time of function call, this container should easily be able to be declared and memory could be reserved outside the main epoch loop.
+
+2026-07-25 (Midnight)
+---
 Matmul:
 - Switching from debug to release mode led to a 7.5x performance increase or approx. 86% reduction in training time per epoch. 
 This improvement is unsurprising but worth noting. (01:15)
@@ -10,8 +16,9 @@ This improvement is unsurprising but worth noting. (01:15)
 
 #### As of 2026-07-25 01:21, with the following configuration:
 - Fixed:
-    - i5-12500H Laptop CPU
+    - i5-12500H Laptop CPU (Silent Mode)
     - 3200 MT/s Primary Memory
+    - Epochs = 20
     - Mini-batch size = 10
     - MNIST dataset
     - Topology = 784-Input -> 30-Hidden -> 10-Output
@@ -25,5 +32,4 @@ This improvement is unsurprising but worth noting. (01:15)
 Considering Nielsen (see README.md) 
 [estimated](http://neuralnetworksanddeeplearning.com/chap1.html#:~:text=Note%20that%20if%20you%27re%20running%20the%20code%20as%20you%20read%20along%2C%20it%20will%20take%20some%20time%20to%20execute%20%2D%20for%20a%20typical%20machine%20%28as%20of%202015%29%20it%20will%20likely%20take%20a%20few%20minutes%20to%20run%2E)
 the training time to be around a few minutes (I will assume 3 minutes) to execute SGD() on a 2015 machine with normal specs as well a
-Python-Numpy stack, I should be able to target a 5x performance improvement for my future iterations.
-
+Python-Numpy stack, I should be able to target a 2x performance improvement for my future iterations.

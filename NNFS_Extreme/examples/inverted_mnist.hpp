@@ -8,7 +8,7 @@
 * In order to run this function, use `include "examples/inverted_mnist.hpp"` inside NNFS_Extreme.cpp
 * and run inverted_mnist() inside the main function. Feel free to modify this function to your liking.
 */
-void inverted_mnist() {
+void inverted_mnist(int epochs=20, int mini_batch_size=10, float learning_rate=2.0F) {
     std::cout << "Running inverted MNIST example!" << std::endl;
 
 	auto training_data = MNIST_loader::load_training_data("data/mnist_train_images.bin", "data/mnist_train_labels.bin", 50000, true);
@@ -19,7 +19,7 @@ void inverted_mnist() {
 	auto nn = Network(std::vector<int>{ 10, 30, 784 }); // This topology is surprisingly effective.
 	std::cout << "Network initialized.\n\n";
 
-	nn.SGD(training_data, 20, 10, 2.0F, {});
+	nn.SGD(training_data, epochs, mini_batch_size, learning_rate, {});
     std::cout << "Training complete!\n";
 
     // For now, we try a feedforward with the trained parameters to evaluate the output.

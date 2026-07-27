@@ -3,11 +3,14 @@
 #include <random>	 // shuffle, mt19937, random_device
 #include <algorithm> // max_element, min
 #include <fstream> 	 // ifstream, ofstream
+#include <thread>    // thread
 #include <Spalten/Matrix.hpp>
 #include <Spalten/Utils.hpp>
 #include "NN.hpp"
 #include "activation_functions.hpp"
 #include "utils.hpp"
+
+std::mutex nabla_mutex;
 
 Network::Network(std::vector<int> nw_sizes)
 	: num_layers(nw_sizes.size()), 
@@ -21,12 +24,6 @@ Network::Network(std::vector<int> nw_sizes)
 	biases.reserve(num_param_layers);
 	weights.reserve(num_param_layers);
 
-	activations_buf.reserve(num_param_layers + 1);
-	zs_buf.reserve(num_param_layers);
-	nabla_w_buf.reserve(num_param_layers);
-	nabla_b_buf.reserve(num_param_layers);
-
-
 	// Matrix Initialization
 	for (size_t i = 0; i < num_layers - 1; i++)
 	{
@@ -35,13 +32,11 @@ Network::Network(std::vector<int> nw_sizes)
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
 		weights.emplace_back(mat_random_normal(y, x));
-		nabla_w_buf.emplace_back(Matrix<float>::zeros(y, x));
 	}
 	for (size_t i = 1; i < num_layers; i++)
 	{
 		int y{sizes[i]};
 		biases.emplace_back(mat_random_normal(y, 1));
-		nabla_b_buf.emplace_back(Matrix<float>::zeros(y, 1));
 	}
 	
 }
@@ -61,17 +56,12 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 
 	biases.reserve(num_param_layers);
 	weights.reserve(num_param_layers);
-	activations_buf.reserve(num_param_layers + 1);
-	zs_buf.reserve(num_param_layers);
-	nabla_w_buf.reserve(num_param_layers);
-	nabla_b_buf.reserve(num_param_layers);
 
 	// Matrix Initialization
 	for (size_t i = 1; i < num_layers; i++)
 	{
 		int y{sizes[i]};
 		biases.emplace_back(Matrix<float>::zeros(y, 1));
-		nabla_b_buf.emplace_back(Matrix<float>::zeros(y, 1));
 	}
 	for (size_t i = 0; i < num_layers - 1; i++)
 	{
@@ -80,21 +70,18 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
 		weights.emplace_back(Matrix<float>::zeros(y, x));
-		nabla_w_buf.emplace_back(Matrix<float>::zeros(y, x));
 	}
 
-	// Weights
 	for (auto& weight : weights) {
-		model.read( reinterpret_cast<char*>(&weight.rows), sizeof(size_t));
-		model.read( reinterpret_cast<char*>(&weight.cols), sizeof(size_t));
-		model.read( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float));
+		model.read( reinterpret_cast<char*>(&weight.rows), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(&weight.cols), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float) );
 	}
 
-	// Biases
 	for (auto& bias : biases) {
-		model.read( reinterpret_cast<char*>(&bias.rows), sizeof(size_t));
-		model.read( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));
-		model.read( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float));
+		model.read( reinterpret_cast<char*>(&bias.rows), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(&bias.cols), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float) );
 	}
 }
 
@@ -110,43 +97,97 @@ void Network::SGD(TrainingData training_data, int epochs,
 	assert(eta > 0.0F);
 	assert(training_data.size() > 0);
 
+	auto n_threads = std::thread::hardware_concurrency();
+	std::vector<Buffers> buffer_list;
+	std::vector<Matrix<float>> nabla_w_template;
+	std::vector<Matrix<float>> nabla_b_template;
+	std::vector<Matrix<float>> activations_template;
+	std::vector<Matrix<float>> zs_template;
+
+	for (size_t i = 1; i < num_layers; i++)
+	{
+		int y{sizes[i]};
+		nabla_b_template.emplace_back(Matrix<float>::zeros(y, 1));
+	}
+	for (size_t i = 0; i < num_layers - 1; i++)
+	{
+		int x{sizes[i]};
+		int y{sizes[i + 1]};
+		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
+		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
+		nabla_w_template.emplace_back(Matrix<float>::zeros(y, x));
+	}
+
 	for (int i = 0; i < num_layers; i++) {
-		activations_buf.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
+		activations_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
 		if (i == 0) continue;
-		zs_buf.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
+		zs_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
+	}
+
+	for (auto& buffer : buffer_list) {
+		buffer.activations = activations_template;
+		buffer.zs = zs_template;
+		buffer.nabla_w = nabla_w_template;
+		buffer.nabla_b = nabla_b_template;
 	}
 
 	size_t n_test = test_data.size();	   // Number of testing pairs
 	size_t n_train = training_data.size(); // Number of training pairs
 
-	Timer t;
+	std::mt19937 rng{std::random_device{}()};
+	ThreadPool pool;
+	pool.Start();
+	Timer timer;
 	float elap{0.0F};
+
 	for (int j = 0; j < epochs; j++)
 	{
-		t.reset();
+		timer.reset();
 		// Shuffling ensures that a lot of similar data isn't batched together (due to sorted datasets), 
 		// 		which can lead to slower descent and overfitting.
 		// It also ensures that the model sees a diverse set of examples in each epoch.
-		std::shuffle(training_data.begin(), training_data.end(),
-					 std::mt19937{std::random_device{}()});
+		std::shuffle(training_data.begin(), training_data.end(), rng);
 
 		std::vector<TrainingData> mini_batches;
 		mini_batches.reserve((n_train + min_batch_size) / min_batch_size);
+		// mini_batches.clear();  // Capacity is not affected.
 
-		// Create mini-batches from the shuffled training data. The mini-batches span the entire training dataset.
+		// Create mini-batches from the shuffled training data.
 		for (size_t k = 0; k < n_train; k += min_batch_size)
 		{
 			auto current_size = std::min(min_batch_size, static_cast<int>(n_train - k));
 			mini_batches.emplace_back(
 				std::vector<TrainingSample>(training_data.begin() + k,
-											training_data.begin() + k + current_size));
+											training_data.begin() + k + current_size)
+			);
 		}
 
-		for (const auto &mini_batch : mini_batches)
-		{
-			update_mini_batch(mini_batch, eta);
+
+
+		for (auto& mini_batch : mini_batches) {
+
+			std::vector<std::function<void()>> tasks;
+
+			for (size_t t = 0; t < n_threads; t++) {
+				tasks.push_back([this, t, &ranges, &mini_batch, &buffer_list, eta] {
+					auto [start, end] = ranges[t];
+					for (size_t i = start; i < end; i++) {
+
+					}
+				});
+			}
 		}
-		elap += t.elapsed();
+		
+		
+		for (size_t t = 0; t < n_threads; t++) {
+			tasks.push_back([this, t, &buffer_list, &mini_batches, eta] {
+				update_mini_batch(mini_batches[t], buffer_list[t], eta);
+			});
+		}
+
+		pool.QueueBatch(tasks);
+
+		elap += timer.elapsed();
 		float avg = elap / static_cast<float>(j + 1);
 		if (!test_data.empty())
 			std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluate(test_data), n_test, avg) << "\n";
@@ -155,7 +196,7 @@ void Network::SGD(TrainingData training_data, int epochs,
 	}
 }
 
-void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, float eta)
+void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, Buffers& buffers, float eta)
 {
 	size_t m = mini_batch.size();
 	size_t input_size = sizes.front();
@@ -175,14 +216,14 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, f
 			Y(r, s) = y[r];
 	}
 
-	activations_buf[0] = X;
+	buffers.activations[0] = X;
 
-	for (auto& nabla_w : nabla_w_buf) nabla_w.fill_zeros();
-	for (auto& nabla_b : nabla_b_buf) nabla_b.fill_zeros();
+	for (auto& nabla_w : buffers.nabla_w) nabla_w.fill_zeros();
+	for (auto& nabla_b : buffers.nabla_b) nabla_b.fill_zeros();
 
 	// Backprop computes the gradients of the cost function with respect to the weights and biases for the entire mini-batch.
 	// The updates to nabla_w and nabla_b are computed in place,
-	backprop(X, Y);
+	backprop(X, Y, buffers);
 
 	// The scale factor does two things at once: 
 	// 		- When training in mini-batches, the gradients calculuated must be averaged over the mini-batch size.
@@ -192,14 +233,18 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, f
 	float scale = eta / static_cast<float>(m);
 
 	// The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
-	for (size_t i = 0; i < num_param_layers; i++)
 	{
-		weights[i] -= nabla_w_buf[i] * scale;
-		biases[i] -= nabla_b_buf[i] * scale;
+		std::lock_guard<std::mutex> nabla_guard(nabla_mutex);
+		for (size_t i = 0; i < num_param_layers; i++)
+		{
+			
+			weights[i] -= buffers.nabla_w[i] * scale;
+			biases[i] -= buffers.nabla_b[i] * scale;
+		}
 	}
 }
 
-void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_result)
+void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_result, Buffers& buffers)
 {
 	Matrix<float> activation(X);
 
@@ -216,32 +261,32 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 			}
 		}
 		gemm(1.0F, w, activation, 1.0F, z); 	// [neurons x m]
-		zs_buf[i] = z;
+		buffers.zs[i] = z;
 		activation = act::sigmoid(z);
-		activations_buf[i + 1] = activation;
+		buffers.activations[i + 1] = activation;
 	}
 
 	// Backward pass: Compute the gradients of the cost function with respect to weights and biases using the chain rule.
 
 	// Error is the derivative of the cost function wrt. the activations of the output layer,
 	// 		multiplied element-wise by the derivative of the activation function wrt. the weighted input (z) of the output layer.
-	Matrix<float> inter(zs_buf.back());
-	act::sigmoid_prime(zs_buf.back(), inter);
-	Matrix<float> error = cost_derivative(activations_buf.back(), actual_result).hadamard(inter);
+	Matrix<float> inter(buffers.zs.back());
+	act::sigmoid_prime(buffers.zs.back(), inter);
+	Matrix<float> error = cost_derivative(buffers.activations.back(), actual_result).hadamard(inter);
 							
-	nabla_b_buf.back() = row_sum(error);
-	nabla_w_buf.back() = error * transpose( activations_buf[activations_buf.size() - 2] );
+	buffers.nabla_b.back() = row_sum(error);
+	nabla_w_buf.back() = error * transpose( buffers.activations[buffers.activations.size() - 2] );
 
 	for (size_t l = 2; l < num_layers; l++)
 	{
 		size_t target = num_param_layers - l;
-		const auto &z = zs_buf[target];
+		const auto &z = buffers.zs[target];
 		Matrix<float> d_act(z.rows, z.cols);
 		act::sigmoid_prime(z, d_act);
 		error = transpose(weights[target + 1]) * error;
 		error = error.hadamard(d_act);
-		nabla_b_buf[target] = row_sum(error);
-		nabla_w_buf[target] = error * transpose(activations_buf[target]);
+		buffers.nabla_b[target] = row_sum(error);
+		buffers.nabla_w[target] = error * transpose(buffers.activations[target]);
 	}
 }
 
@@ -297,7 +342,7 @@ int Network::evaluate(const TestData& test_data) const
 	return sum;
 }
 
-// Use forward dashes!
+// Use forward slashes!
 void Network::export_model(std::string model_directory, std::string dataset_name) {
 	std::string model_full_path(std::move(dataset_name));
 
@@ -322,14 +367,12 @@ void Network::export_model(std::string model_directory, std::string dataset_name
 	// Neurons per layer
 	model.write( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(int) );
 
-	// Weights
 	for (auto& weight : weights) {
 		model.write( reinterpret_cast<char*>(&weight.rows), sizeof(size_t));
 		model.write( reinterpret_cast<char*>(&weight.cols), sizeof(size_t));
 		model.write( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float));
 	}
 
-	// Biases
 	for (auto& bias : biases) {
 		model.write( reinterpret_cast<char*>(&bias.rows), sizeof(size_t));
 		model.write( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));

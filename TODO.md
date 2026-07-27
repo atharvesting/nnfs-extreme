@@ -3,6 +3,7 @@
 ### In Progress
 
 ### Major
+- [ ] Parallelize the training loop using threads.
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
 - [ ] Save 3 models for access on GitHub (10-30-784, 10-128-256-512-784, 42(10+32Noise)-128-256-512-784)
 
