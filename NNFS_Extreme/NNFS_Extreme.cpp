@@ -7,6 +7,6 @@ int main()
 	// warmup();
 	standard_mnist();
 	// inverted_mnist();
-
+	
 	return 0;
 }

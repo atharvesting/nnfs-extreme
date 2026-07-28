@@ -98,7 +98,10 @@ void Network::SGD(TrainingData training_data, int epochs,
 	assert(training_data.size() > 0);
 
 	auto n_threads = std::thread::hardware_concurrency();
+
 	std::vector<Buffers> buffer_list;
+	for (int i = 0; i < n_threads; i++) buffer_list.emplace_back(num_layers);
+
 	std::vector<Matrix<float>> nabla_w_template;
 	std::vector<Matrix<float>> nabla_b_template;
 	std::vector<Matrix<float>> activations_template;
@@ -162,30 +165,36 @@ void Network::SGD(TrainingData training_data, int epochs,
 			);
 		}
 
+		std::vector<std::function<void()>> tasks;
+		tasks.reserve(n_threads);
 
+		for (auto& mini_batch : mini_batches) 
+		{
+			auto ranges = create_ranges(mini_batch, n_threads);
+			tasks.clear();
 
-		for (auto& mini_batch : mini_batches) {
-
-			std::vector<std::function<void()>> tasks;
-
-			for (size_t t = 0; t < n_threads; t++) {
-				tasks.push_back([this, t, &ranges, &mini_batch, &buffer_list, eta] {
-					auto [start, end] = ranges[t];
-					for (size_t i = start; i < end; i++) {
-
-					}
+			for (size_t t = 0; t < ranges.size(); t++) 
+			{
+				auto& [start, end] = ranges[t];
+				tasks.push_back([this, t, start, end, &mini_batch, &buffer_list, eta] {
+					update_mini_batch(mini_batch, start, end, buffer_list[t], eta);
 				});
+			}
+			pool.QueueBatch(tasks);
+			pool.Wait(); 
+
+			// The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
+			float scale = eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
+			for (size_t t = 0; t < ranges.size(); t++) 
+			{
+				for (size_t i = 0; i < num_param_layers; i++)
+				{
+					weights[i] -= buffer_list[t].nabla_w[i] * scale;
+					biases[i] -= buffer_list[t].nabla_b[i] * scale;
+				}
 			}
 		}
 		
-		
-		for (size_t t = 0; t < n_threads; t++) {
-			tasks.push_back([this, t, &buffer_list, &mini_batches, eta] {
-				update_mini_batch(mini_batches[t], buffer_list[t], eta);
-			});
-		}
-
-		pool.QueueBatch(tasks);
 
 		elap += timer.elapsed();
 		float avg = elap / static_cast<float>(j + 1);
@@ -194,11 +203,12 @@ void Network::SGD(TrainingData training_data, int epochs,
 		else
 			std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
 	}
+	pool.Stop();
 }
 
-void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, Buffers& buffers, float eta)
+void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, int start, int end, Buffers& buffers, float eta)
 {
-	size_t m = mini_batch.size();
+	size_t m = (end - start) + 1;
 	size_t input_size = sizes.front();
 	size_t output_size = sizes.back();
 	Matrix<float> X(input_size, m);
@@ -207,13 +217,14 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, B
 	// Stacking all mini-batch input and output matrices into X and Y respectively. 
 	// Each column of X corresponds to an input sample, and each column of Y corresponds to the corresponding output sample.
 	// This allows for much faster matrix operations during backpropagation, as we can process the entire mini-batch in one go.
-	for (size_t s = 0; s < m; s++)
+	for (size_t s = start; s <= end; s++)
 	{
 		const auto &[x, y] = mini_batch[s];
+		size_t col = s - start; // TODO: Why?
 		for (size_t r = 0; r < input_size; r++)
-			X(r, s) = x[r];
+			X(r, col) = x[r];
 		for (size_t r = 0; r < output_size; r++)
-			Y(r, s) = y[r];
+			Y(r, col) = y[r];
 	}
 
 	buffers.activations[0] = X;
@@ -232,16 +243,7 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, B
 	// 		we compute the scale factor once and multiply it with the gradients.
 	float scale = eta / static_cast<float>(m);
 
-	// The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
-	{
-		std::lock_guard<std::mutex> nabla_guard(nabla_mutex);
-		for (size_t i = 0; i < num_param_layers; i++)
-		{
-			
-			weights[i] -= buffers.nabla_w[i] * scale;
-			biases[i] -= buffers.nabla_b[i] * scale;
-		}
-	}
+
 }
 
 void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_result, Buffers& buffers)
@@ -275,7 +277,7 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 	Matrix<float> error = cost_derivative(buffers.activations.back(), actual_result).hadamard(inter);
 							
 	buffers.nabla_b.back() = row_sum(error);
-	nabla_w_buf.back() = error * transpose( buffers.activations[buffers.activations.size() - 2] );
+	buffers.nabla_w.back() = error * transpose( buffers.activations[buffers.activations.size() - 2] );
 
 	for (size_t l = 2; l < num_layers; l++)
 	{

@@ -76,7 +76,7 @@ private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.
 	/// @param mini_batch A vector of TrainingSample pairs (input matrix, output matrix).
 	/// @param eta Learning rate.
-	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, Buffers& buffers, float eta);
+	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, int start, int end, Buffers& buffers, float eta);
 
 	/// @brief Computes the gradients of the cost function with respect to the weights and biases.
 	/// @param X Input matrix.

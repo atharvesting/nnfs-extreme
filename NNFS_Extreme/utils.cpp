@@ -27,6 +27,15 @@ void ThreadPool::ThreadLoop() {
             jobs.pop();
         }
         job();
+
+        {
+            std::unique_lock<std::mutex> lock(queue_mutex);
+            pending_tasks--;
+
+            if (pending_tasks == 0) {
+                wait_condition.notify_all();
+            }
+        }
     }
 }
 
@@ -34,21 +43,32 @@ void ThreadPool::QueueJob(const std::function<void()>& job) {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
         jobs.push(job);
+        pending_tasks++;
     }
     mutex_condition.notify_one();
 }
 
 void ThreadPool::QueueBatch(const std::vector<std::function<void()>>& job_batch) {
-    for (const auto& job : job_batch) this->QueueJob(job);
+    if (job_batch.empty()) return;
+
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        for (const auto& job : job_batch) {
+            jobs.push(job);
+        }
+        pending_tasks += job_batch.size();
+    }
+    mutex_condition.notify_all();
 }
 
 bool ThreadPool::busy() {
-    bool poolbusy;
-    {
-        std::unique_lock<std::mutex> lock(queue_mutex);
-        poolbusy = !jobs.empty();
-    }
-    return poolbusy;
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    return pending_tasks > 0;
+}
+
+void ThreadPool::Wait() {
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    wait_condition.wait(lock, [this] { return pending_tasks == 0; });
 }
 
 void ThreadPool::Stop() {

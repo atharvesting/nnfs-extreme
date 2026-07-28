@@ -3,7 +3,6 @@
 ### In Progress
 
 ### Major
-- [ ] Parallelize the training loop using threads.
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
 - [ ] Save 3 models for access on GitHub (10-30-784, 10-128-256-512-784, 42(10+32Noise)-128-256-512-784)
 
@@ -22,6 +21,7 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
+- [x] Parallelize the training loop using threads. (2026-07-28)
 - [x] (third_party/Spalten/) Implement GEMM operation (Task for Spalten) (2026-07-25)
 - [x] (examples/inverted_mnist.hpp) Examples: Inverted data (digit2image) MNIST training and eval workflow. (2026-07-24)
 - [x] (examples/standard_mnist.hpp) Examples: Standard data (image2digit) MNIST training and eval workflow. (2026-07-24)
