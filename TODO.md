@@ -1,6 +1,7 @@
 # TODO.md for NNFS-Extreme (started 00:48 24/07/2026)
 
 ### In Progress
+- [ ] (examples/export_model.hpp) Examples: Model binary Import/Export workflow.
 
 ### Major
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
@@ -11,7 +12,6 @@
 - [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
 
 ### Documentation
-- [ ] (examples/export_model.hpp) Examples: Model binary Import/Export workflow.
 - [ ] (README.md) Short example codeblock showcasing API.
 - [ ] (README.md) Quickstart Guide.
 

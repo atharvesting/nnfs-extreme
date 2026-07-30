@@ -1,3 +1,4 @@
+#include <iostream>  // cout, endl
 #include <vector>	 // vector
 #include <assert.h>	 // assert
 #include <random>	 // shuffle, mt19937, random_device
@@ -88,6 +89,7 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 void Network::SGD(TrainingData training_data, int epochs,
 				  int min_batch_size, float eta, const TestData& test_data)
 {
+	Timer master;
 	if (test_data.empty()) test_data_provided = false;
 	this->eta = eta; 
 	this->epochs = epochs;
@@ -142,7 +144,7 @@ void Network::SGD(TrainingData training_data, int epochs,
 	pool.Start();
 	Timer timer;
 	float elap{0.0F};
-
+	std::cout << n_threads << std::endl;
 	for (int j = 0; j < epochs; j++)
 	{
 		timer.reset();
@@ -203,6 +205,7 @@ void Network::SGD(TrainingData training_data, int epochs,
 		else
 			std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
 	}
+	std::cout << "Total Training (+ Testing) Time = " << master.elapsed() << std::endl;
 	pool.Stop();
 }
 
@@ -345,7 +348,7 @@ int Network::evaluate(const TestData& test_data) const
 }
 
 // Use forward slashes!
-void Network::export_model(std::string model_directory, std::string dataset_name) {
+std::string Network::export_model(std::string model_directory, std::string dataset_name) {
 	std::string model_full_path(std::move(dataset_name));
 
 	model_full_path += "_";
@@ -380,4 +383,6 @@ void Network::export_model(std::string model_directory, std::string dataset_name
 		model.write( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));
 		model.write( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float));
 	}
+
+	return model_full_path;
 }

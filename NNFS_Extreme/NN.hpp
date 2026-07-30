@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <string>
 #include <Spalten/Matrix.hpp>
 
 // Traditional MNIST: TrainingSample contains a pair of InputMatrix(784 x 1) and OutputMatrix(10, 1)
@@ -35,16 +36,6 @@ public:
 	bool test_data_provided;
 	int epochs;
 	int eta;
-	
-	// '_buf' postfix indicating that the container is reused to avoid allocation overhead.
-	std::vector<Matrix<float>> activations_buf;
-	std::vector<Matrix<float>> zs_buf;
-	
-	/// @param nabla_w_buf Gradients of the cost function with respect to the weights. Zeroed out after every mini-batch update.
-	std::vector<Matrix<float>> nabla_w_buf;
-	
-	/// @param nabla_b_buf Gradients of the cost function with respect to the biases. Zeroed out after every mini-batch update.
-	std::vector<Matrix<float>> nabla_b_buf;
 
 	/// @brief Constructs a neural network with the specified layer sizes.
 	/// @param nw_sizes A vector containing the number of neurons in each layer (including input and output layers).
@@ -70,7 +61,8 @@ public:
 
 	/// @brief Export the model parameters as a custom binary. Imported using the file constructor.
 	/// @param model_path The path+filename as the export location.
-	void export_model(std::string model_path, std::string dataset_name);
+	/// @return String containing the path (relative to project root) to the model binary. Can be used in the Network Constructor.
+	std::string export_model(std::string model_path, std::string dataset_name);
 
 private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.
