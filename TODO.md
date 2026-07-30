@@ -1,7 +1,6 @@
 # TODO.md for NNFS-Extreme (started 00:48 24/07/2026)
 
 ### In Progress
-- [ ] (examples/export_model.hpp) Examples: Model binary Import/Export workflow.
 
 ### Major
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
@@ -12,7 +11,6 @@
 - [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
 
 ### Documentation
-- [ ] (README.md) Short example codeblock showcasing API.
 - [ ] (README.md) Quickstart Guide.
 
 ### Backlog
@@ -20,7 +18,9 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
-- [x] (README.md) Major refactor to include MNIST-CV Extension. Use links for navigation. (2026-7-29)
+- [x] (README.md) Short example codeblock showcasing API. (2026-07-30)
+- [x] (examples/export_model.hpp) Examples: Model binary Import/Export workflow. (2026-07-29)
+- [x] (README.md) Major refactor to include MNIST-CV Extension. Use links for navigation. (2026-07-29)
 - [x] Parallelize the training loop using threads. (2026-07-28)
 - [x] (third_party/Spalten/) Implement GEMM operation (Task for Spalten) (2026-07-25)
 - [x] (examples/inverted_mnist.hpp) Examples: Inverted data (digit2image) MNIST training and eval workflow. (2026-07-24)

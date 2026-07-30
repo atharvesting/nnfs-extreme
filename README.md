@@ -42,6 +42,25 @@ After successfully achieving 95% accuracy in digit classification, as an experim
   </tr>
 </table>
 
+### Standard Example
+```cpp
+int main() 
+{
+  int epochs = 20, mini_batch_size = 32;
+  float learning_rate = 2.0F;
+
+	auto training_data = MNIST_loader::load_training_data("data/mnist_train_images.bin", "data/mnist_train_labels.bin", 50000,  false);	// inverted_data = false
+	
+	auto test_data = MNIST_loader::load_test_data("data/mnist_test_images.bin", "data/mnist_test_labels.bin", 10000);
+
+	auto nn = Network(std::vector<int>{ 784, 30, 10 });
+
+	nn.SGD(training_data, epochs, mini_batch_size, learning_rate, test_data);
+}
+```
+
+### Spalten: Backbone of the Neural Network
+
 The foundational math libary used for this project was my very own linear algebra library Spalten, built for the very purpose of using it to write neural networks. The main offering of that library is the Matrix class template, that is optimised and accelerated for great (i hope) performance using fast algorithms and advanced C++ features. Check the library (still WIP) out [here](https://github.com/atharvesting/spalten-linalg-library). Spalten and NNFS-Extreme are written with zero external dependencies.
 
 The pickled and zipped data can be found inside Nielsen's own [repository](https://github.com/mnielsen/neural-networks-and-deep-learning/blob/master/data/mnist.pkl.gz).
