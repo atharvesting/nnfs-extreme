@@ -83,6 +83,11 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [MediaPipe Hand Landmarker Python Docs](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python)
 - [Hand Landmarker Example Notebook](https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb)
 - [C++ Thread Pool Implementation](https://stackoverflow.com/a/32593825)
+- [Cropping an Image](https://learnopencv.com/cropping-an-image-using-opencv/)
+- [Replacing elements in NumPy](https://stackoverflow.com/questions/19666626/replace-all-elements-of-numpy-array-that-are-greater-than-some-value)
+- [Pixelating an Image using OpenCV](https://stackoverflow.com/questions/55508615/how-to-pixelate-image-using-opencv-in-python)
+- [Blurring an Image using OpenCV](https://docs.opencv.org/5.0/py_tutorials/py_imgproc/py_filtering/py_filtering.html)
+- [Time Python Module docs](https://docs.python.org/3/library/time.html)
 
 ---
 ### AI use disclosure

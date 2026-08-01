@@ -1,6 +1,8 @@
 import cv2 as cv
 from hand_tracking import HandTracker
+from image import process_images
 from functools import wraps
+import time
 
 def loop(func):
     
@@ -64,16 +66,27 @@ def start_loop():
         ht.detect(frame)
         if ht.latest_result:
             frame = ht.draw_landmarks_on_image(frame, ht.latest_result)
-        frame = ht.sketch(frame)
+        boxes = ht.bounding_boxes()
+        frame = ht.sketch(frame, boxes)
         cv.imshow('Camera', frame)
 
-        if cv.waitKey(1) & 0xFF == ord('c'):
+        key = cv.waitKey(1) & 0xFF
+        if key == ord('c'):
             ht.clear_sketch()
-        
-        if cv.waitKey(1) & 0xFF == ord('q'):
+        elif key == ord('q'):
             break
 
+    success, frame = cap.read()
+    frame = cv.flip(frame, 1)
+    boxes = ht.bounding_boxes()
+    frame = ht.sketch(frame, boxes)
+    box_images = ht.get_box_images(frame, boxes)
+    process_images(box_images)
+
+    i = 1
+    for img in box_images:
+        cv.imwrite(f"data/output/img_{i}.png", img)
+        i += 1
+    
     cap.release()
     cv.destroyAllWindows()
-
-start_loop()

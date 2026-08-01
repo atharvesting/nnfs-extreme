@@ -27,7 +27,6 @@ class HandTracker:
         self.latest_result = result
         self.process_result(result, output_image)
 
-
     def detect(self, img):
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=img)
@@ -36,7 +35,7 @@ class HandTracker:
 
     @staticmethod
     def chaikin_smooth(pts, iterations=5):
-        if len(pts) <= 2:
+        if len(pts) <= 20:
             return pts
         for _ in range(iterations):
             Q = 0.75 * pts[:-1] + 0.25 * pts[1:]
@@ -47,13 +46,13 @@ class HandTracker:
             pts = np.vstack([pts[0], new_pts, pts[-1]])
         return pts
 
+    @staticmethod
+    def dist3d(l1, l2):
+        return ((l1.x - l2.x)**2 + (l1.y - l2.y)**2 + (l1.z - l2.z)**2)**0.5
+
     def process_result(self, result, output_img: mp.Image):
         if result.hand_landmarks:
             landmarks = result.hand_landmarks[0]
-            
-            # 3D distance helper
-            def dist3d(l1, l2):
-                return ((l1.x - l2.x)**2 + (l1.y - l2.y)**2 + (l1.z - l2.z)**2)**0.5
             
             wrist = landmarks[0]
             index_tip = landmarks[8]
@@ -62,8 +61,8 @@ class HandTracker:
             middle_pip = landmarks[10]
             
             # A finger is extended if its tip is further from the wrist than its PIP joint
-            index_extended = dist3d(index_tip, wrist) > dist3d(index_pip, wrist)
-            middle_extended = dist3d(middle_tip, wrist) > dist3d(middle_pip, wrist)
+            index_extended = self.dist3d(index_tip, wrist) > self.dist3d(index_pip, wrist)
+            middle_extended = self.dist3d(middle_tip, wrist) > self.dist3d(middle_pip, wrist)
             
             if isinstance(output_img, mp.Image):
                 h, w = output_img.height, output_img.width
@@ -74,9 +73,9 @@ class HandTracker:
             
             if index_extended and not middle_extended:
                 if self.drawing_active == False:
-                    if dist3d(index_coord, self.stroke_points[-1][-1]) > 5:
-                        self.stroke_points.append([index_coord])
-                        self.drawing_active = True
+                    # if self.dist3d(index_coord, self.stroke_points[-1][-1]) > 5:
+                    self.stroke_points.append([index_coord])
+                    self.drawing_active = True
                 else:
                     self.stroke_points[-1].append(index_coord)
             else:
@@ -85,7 +84,7 @@ class HandTracker:
     def bounding_boxes(self):
         boxes = []
         for digit in self.stroke_points:
-            if len(digit) < 20:
+            if len(digit) < 40:
                 continue
 
             leftmost = min(digit, key=lambda x: x[0])[0]
@@ -93,15 +92,18 @@ class HandTracker:
             topmost = max(digit, key=lambda x: x[1])[1]
             bottommost = min(digit, key=lambda x: x[1])[1]
 
-            x_ratio = rightmost - leftmost
-            y_ratio = topmost - bottommost
+            delta_x = rightmost - leftmost
+            delta_y = topmost - bottommost
+    
+            extend_factor = 0.35
+            topmost     += delta_y * extend_factor
+            bottommost  -= delta_y * extend_factor
 
-            extend_factor = 0.2
+            new_delta_y = topmost - bottommost
 
-            leftmost -= extend_factor * x_ratio
-            rightmost += extend_factor * x_ratio
-            topmost += extend_factor * y_ratio
-            bottommost -= extend_factor * y_ratio
+            p = (new_delta_y - delta_x) / 2
+            leftmost -= p
+            rightmost += p
 
             boxes.append(
                 (
@@ -133,7 +135,7 @@ class HandTracker:
             )
         return annotated_image
 
-    def sketch(self, img):
+    def sketch(self, img, boxes):
         for stroke in self.stroke_points:
             if len(stroke) == 1:
                 cv.circle(img, stroke[0], 2, (0, 255, 0), -1)
@@ -141,13 +143,24 @@ class HandTracker:
                 pts = np.array(stroke, dtype=np.float32)
                 pts = self.chaikin_smooth(pts, iterations=3)
                 pts = pts.astype(np.int32).reshape((-1, 1, 2))
-                cv.polylines(img, [pts], isClosed=False, color=(0, 255, 0), thickness=5)
+                cv.polylines(img, [pts], isClosed=False, color=(0, 255, 0), thickness=12)
 
-        boxes = self.bounding_boxes()
         for pairs in boxes:
-            cv.rectangle(img, pairs[0], pairs[1], color=(255, 0, 0), thickness=2)
+            cv.rectangle(img, pairs[0], pairs[1], color=(255, 0, 0), thickness=1)
 
         return img
 
+    def get_box_images(self, frame, boxes):
+        image_arrays = []
+        for pairs in boxes:
+            image_arrays.append(frame
+                [
+                    pairs[1][1]:pairs[0][1],
+                    pairs[0][0]:pairs[1][0]
+                ]
+            )
+
+        return image_arrays
+
     def clear_sketch(self):
-        self.stroke_points = []
+        self.stroke_points.clear()

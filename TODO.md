@@ -18,6 +18,8 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
+- [x] Implement the image processing pipeline to make drawings MNIST-ready. (2026-08-01)
+- [x] Add support for independent polylines, bounding boxes, and performance improvements. (2026-07-31)
 - [x] (README.md) Short example codeblock showcasing API. (2026-07-30)
 - [x] (examples/export_model.hpp) Examples: Model binary Import/Export workflow. (2026-07-29)
 - [x] (README.md) Major refactor to include MNIST-CV Extension. Use links for navigation. (2026-07-29)
