@@ -1,7 +1,9 @@
+import nnfs_extreme as nnfs
 import cv2 as cv
 from hand_tracking import HandTracker
-from image import process_images
+from image import process_images, to_flat_arrays
 from functools import wraps
+import matplotlib.pyplot as plt
 import time
 
 def loop(func):
@@ -77,16 +79,33 @@ def start_loop():
             break
 
     success, frame = cap.read()
+    
+
+    # i = 1
+    # for img in box_images:
+    #     cv.imwrite(f"data/output/img_{i}.png", img)
+    #     i += 1
+    
+    cap.release()
+    cv.destroyAllWindows()
+
     frame = cv.flip(frame, 1)
     boxes = ht.bounding_boxes()
     frame = ht.sketch(frame, boxes)
     box_images = ht.get_box_images(frame, boxes)
     process_images(box_images)
 
-    i = 1
-    for img in box_images:
-        cv.imwrite(f"data/output/img_{i}.png", img)
-        i += 1
-    
-    cap.release()
-    cv.destroyAllWindows()
+    arrays = to_flat_arrays(box_images)
+    net = nnfs.Network("data/output/mnist_784-30-10_ep10_lr2p000.bin")
+    for i, array in enumerate(arrays):
+        output = net.feedforward(array)           # list[float] of length 10
+        print(output)
+        predicted = output.index(max(output))     # index of highest activation = predicted digit
+        print(f"Image {i+1}: digit = {predicted}  (confidence {max(output):.4f})")
+
+
+    plt.subplot(1, 2, 1)
+    plt.imshow(arrays[0].reshape(28, 28), cmap="gray")
+    plt.subplot(1, 2, 2)
+    plt.imshow(arrays[1].reshape(28, 28), cmap="gray")
+    plt.show()

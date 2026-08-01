@@ -143,7 +143,7 @@ class HandTracker:
                 pts = np.array(stroke, dtype=np.float32)
                 pts = self.chaikin_smooth(pts, iterations=3)
                 pts = pts.astype(np.int32).reshape((-1, 1, 2))
-                cv.polylines(img, [pts], isClosed=False, color=(0, 255, 0), thickness=12)
+                cv.polylines(img, [pts], isClosed=False, color=(0, 255, 0), thickness=15)
 
         for pairs in boxes:
             cv.rectangle(img, pairs[0], pairs[1], color=(255, 0, 0), thickness=1)

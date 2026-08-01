@@ -6,9 +6,9 @@
 int main() 
 {
 	// warmup();
-	standard_mnist();
+	// standard_mnist();
 	// inverted_mnist();
-	// model_export_n_import();
+	model_export_n_import(10);
 	
 	return 0;
 }
