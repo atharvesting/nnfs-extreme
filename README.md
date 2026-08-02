@@ -9,8 +9,63 @@ The project-group is part of a mult-layered and multi-faceted progression, which
 
 ---
 
-## NNFS-Extreme
+## Overall Architecture
 
+```mermaid
+graph TD
+    CAM[Webcam] --> CV[OpenCV]
+    CV --> MP[MediaPipe\nHand Landmark]
+    MP --> PIPE[Image Pipeline\ncolor · grayscale · blur · 28×28]
+    PIPE --> PYD[nnfs_extreme.pyd\npybind11 binding]
+    PYD --> NET[Network::feedforward\nC++ · Spalten]
+    NET --> OUT[Predicted Digit]
+
+    subgraph MNIST_CV [MNIST-CV · Python]
+        CV
+        MP
+        PIPE
+        PYD
+    end
+
+    subgraph NNFS_E [NNFS-Extreme · C++]
+        NET
+    end
+```
+
+---
+
+## Project Directory
+
+```
+NNFS_Extreme/
+├── NNFS_Extreme/      
+│   ├── CMakeLists.txt            # Build instructions for NNFS_Extreme       
+│   ├── NN.hpp / NN.cpp           # Neural Network Implementation from Scratch
+│   ├── activation_functions.*    # Set of all common activation functions and their derivatives
+│   ├── data_loaders.*            # Functions essential for loading training and testing binaries
+│   ├── utils.*                   # Extra utilities like the `ThreadPool` class
+│   ├── python_bindings.cpp       # Python bindings (pybind11) to access NN through Python
+│   ├── NNFS_Extreme.cpp          # Main entry point of the standalone NNFS-Extreme Project
+│   └── examples/                 # Ready-to-use functions for the standalone NNFS-Extreme Project
+├── MNIST_CV/                     
+│   ├── MNIST_CV.py               # Main entry point of the MNIST-CV Project
+│   ├── looping.py                # Video Camera Loop Decorator + Main body function
+│   ├── hand_tracking.py          # HandTracker class for landmarking, bounding boxes and drawing
+│   ├── image.py                  # Image processing functions and pipeline
+│   ├── nnfs_extreme.pyd          # pybind11-generated bindings to run NNFS_Extreme code
+│   └── nnfs_extreme.pyi          # Typing stubs for Network Class.
+├── third_party/                  
+│   └── Spalten/                  # Git submodule for the underlying foundational matrix engine
+├── data/                         # Artifacts and program outputs including model binaries
+├── assets/                       # Media for README.md
+├── scripts/                      # Miscellaneous scripts
+└── CMakeLists.txt                # Main build instructions
+```
+
+---
+
+
+## NNFS-Extreme
 > NNFS from scratch. Actually.
 
 This is an educational project (MVP completed) aimed at building a neural network by literally starting with the dot product function :)
@@ -42,6 +97,39 @@ After successfully achieving 95% accuracy in digit classification, as an experim
   </tr>
 </table>
 
+---
+### Architecture
+---
+
+```mermaid
+graph TD
+    BIN[mnist_train_images.bin\nmnist_train_labels.bin] --> DL[MNIST_loader]
+    DL --> TD[TrainingData\nvector of Matrix pairs]
+    TD --> SGD[SGD]
+
+    subgraph Training
+        SGD --> SHUF[Shuffle]
+        SHUF --> MB[Mini-batches]
+        MB --> TP[Thread Pool\nhardware_concurrency threads]
+        TP --> BP[backprop\nGEMM · sigmoid · chain rule]
+        BP --> UPD[Weight + Bias Update\nW -= η/m · ∇W]
+        UPD --> SGD
+    end
+
+    UPD --> EXP[export_model\n.bin binary]
+    EXP --> IMP[Network constructor\nfrom .bin]
+    IMP --> FF[feedforward\nsigmoid per layer]
+    FF --> PRED[argmax → digit]
+```
+
+**Key implementation details:**
+- Weights: `vector<Matrix<float>>` — shape `[neurons_out × neurons_in]` per layer
+- Biases: `vector<Matrix<float>>` — shape `[neurons × 1]` per layer
+- Mini-batch stacked as columns: `X [784 × m]`, `Y [10 × m]` for GEMM efficiency
+- Activation: sigmoid everywhere, cost derivative: `output − actual`
+- Thread pool parallelises backprop across sub-ranges of each mini-batch, accumulating `∇W` and `∇b` under a mutex
+- Model binary format: `num_layers → sizes[] → weights (rows·cols·data) → biases (rows·cols·data)`
+
 ### Standard Example
 ```cpp
 int main() 
@@ -69,9 +157,43 @@ The pickled and zipped data can be found inside Nielsen's own [repository](https
 
 ## MNIST-CV
 
-This project puts the above Neural Network to test by making it classify digits from a stream of real time images. The images are sourced from a live camera feed that uses OpenCV and MediaPipe to track hand landmarks and draw the digits on an air canvas. The feed must be dealt with such that the individual digit drawings are detected, processed (this word is doing some heavy lifting) and sent to the network for classification. The primary language used is Python. I intend to use python bindings to handle digit image data transmission to my C++ Neural Network and back.
+This project puts the above Neural Network to test by making it classify digits from a stream of real time images. The images are sourced from a live camera feed that uses OpenCV and MediaPipe to track hand landmarks and draw the digits on an air canvas. The feed must be dealt with such that the individual digit drawings are detected, processed (this word is doing some heavy lifting) and sent to the network for classification. The primary language used is Python. Python bindings (pybind11) is used to transmit data image array data, run inference, and send the classification output back to the Python program.
 
 The idea for this project stemmed from my interest in Computer Vision as well as the desire to build upon the neural network in a way that expanded my technological know-how further.
+
+### Architecture
+---
+
+```mermaid
+graph TD
+    EP[MNIST_CV.py\nEntry point] --> DEC["@loop decorator\nopens VideoCapture\ninits HandTracker + Network"]
+    DEC --> LOOP[Per-frame loop]
+
+    subgraph pipe ["pipe(frame, ht, net) — per frame"]
+        LOOP --> DET[ht.detect]
+        DET --> LM[draw_landmarks]
+        LM --> SKT[ht.sketch\nair-draw in green]
+        SKT --> BOX[bounding_boxes\ncrop digit regions]
+        BOX --> PROC[process_images\ncolor_correction · grayscale · blur · 28×28]
+        PROC --> FLAT[to_flat_arrays\nflatten · ÷255 · float32]
+        FLAT --> FF[net.feedforward\npybind11 → C++]
+        FF --> PRED[argmax → digit label]
+    end
+
+    LOOP --> KEY{keypress}
+    KEY -- c --> CLR[clear_sketch]
+    KEY -- q --> END[release · destroy]
+```
+
+**Module responsibilities:**
+
+| File | Role |
+|---|---|
+| `MNIST_CV.py` | Entry point — calls `pipe()` |
+| `looping.py` | `@loop` decorator (webcam lifecycle) + `pipe` (per-frame logic) |
+| `hand_tracking.py` | MediaPipe landmark detection, air-canvas sketch, bounding box extraction |
+| `image.py` | MNIST-compatible image processing pipeline |
+| `nnfs_extreme.pyd` | pybind11 C++ extension — exposes `Network(model_path)` and `feedforward(array)` |
 
 ---
 

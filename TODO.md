@@ -20,6 +20,7 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
+- [x] (README.md) Architecture diagrams and directory structure. (2026-08-02)
 - [x] (MNIST_CV/looping.py) Integrate classification inference in the live loop. (2026-08-02)
 - [x] Working binding between NNFS_E and MNIST_CV along with successful inference from drawn digits. (2026-08-01)
 - [x] (MNIST_CV/image.py) Implement the image processing pipeline to make drawings MNIST-ready. (2026-08-01)
