@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+from numpy.typing import NDArray
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -8,8 +9,8 @@ import time
 class HandTracker:
 
     def __init__(self, model_path="MNIST_CV/model/hand_landmarker.task", num_hands=2):
-        self.stroke_points = []
-        self.latest_result = None
+        self.stroke_points: list[list[tuple]] = []
+        self.latest_result: vision.HandLandmarkerResult | None = None
         base_options = python.BaseOptions(model_asset_path=model_path)
         options = vision.HandLandmarkerOptions(base_options=base_options, 
                                                running_mode=vision.RunningMode.LIVE_STREAM,
@@ -21,20 +22,20 @@ class HandTracker:
         self.mp_hands = mp.tasks.vision.HandLandmarksConnections
         self.mp_drawing = mp.tasks.vision.drawing_utils
         self.mp_drawing_styles = mp.tasks.vision.drawing_styles
-        self.drawing_active = False
+        self.drawing_active: bool = False
 
-    def _result_callback(self, result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
+    def _result_callback(self, result: vision.HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int) -> None:
         self.latest_result = result
         self.process_result(result, output_image)
 
-    def detect(self, img):
-        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-        mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=img)
-        timestamp_ms = int(time.time() * 1000)
-        self.landmarker.detect_async(mp_img, timestamp_ms)
+    def detect(self, frame: NDArray) -> None:
+        frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        mp_frame: mp.Image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        timestamp_ms: int = int(time.time() * 1000)
+        self.landmarker.detect_async(mp_frame, timestamp_ms)
 
     @staticmethod
-    def chaikin_smooth(pts, iterations=5):
+    def chaikin_smooth(pts, iterations=5) -> NDArray:
         if len(pts) <= 20:
             return pts
         for _ in range(iterations):
@@ -47,10 +48,10 @@ class HandTracker:
         return pts
 
     @staticmethod
-    def dist3d(l1, l2):
+    def dist3d(l1, l2) -> float:
         return ((l1.x - l2.x)**2 + (l1.y - l2.y)**2 + (l1.z - l2.z)**2)**0.5
 
-    def process_result(self, result, output_img: mp.Image):
+    def process_result(self, result: vision.HandLandmarkerResult, output_frame: mp.Image) -> None:
         if result.hand_landmarks:
             landmarks = result.hand_landmarks[0]
             
@@ -61,19 +62,18 @@ class HandTracker:
             middle_pip = landmarks[10]
             
             # A finger is extended if its tip is further from the wrist than its PIP joint
-            index_extended = self.dist3d(index_tip, wrist) > self.dist3d(index_pip, wrist)
-            middle_extended = self.dist3d(middle_tip, wrist) > self.dist3d(middle_pip, wrist)
+            index_extended: bool = self.dist3d(index_tip, wrist) > self.dist3d(index_pip, wrist)
+            middle_extended: bool = self.dist3d(middle_tip, wrist) > self.dist3d(middle_pip, wrist)
             
-            if isinstance(output_img, mp.Image):
-                h, w = output_img.height, output_img.width
+            if isinstance(output_frame, mp.Image):
+                h, w = output_frame.height, output_frame.width
             else:
-                h, w, _ = output_img.shape
+                h, w, _ = output_frame.shape
                 
-            index_coord = (int(index_tip.x * w), int(index_tip.y * h))
+            index_coord: tuple[int, int] = (int(index_tip.x * w), int(index_tip.y * h))
             
             if index_extended and not middle_extended:
                 if self.drawing_active == False:
-                    # if self.dist3d(index_coord, self.stroke_points[-1][-1]) > 5:
                     self.stroke_points.append([index_coord])
                     self.drawing_active = True
                 else:
@@ -81,27 +81,27 @@ class HandTracker:
             else:
                 self.drawing_active = False
 
-    def bounding_boxes(self):
-        boxes = []
+    def bounding_boxes(self) -> list[tuple[tuple[int, int, int]]]:
+        boxes: list[tuple[tuple[int, int, int]]] = []
         for digit in self.stroke_points:
-            if len(digit) < 40:
+            if len(digit) < 30:
                 continue
 
-            leftmost = min(digit, key=lambda x: x[0])[0]
-            rightmost = max(digit, key=lambda x: x[0])[0]
-            topmost = max(digit, key=lambda x: x[1])[1]
-            bottommost = min(digit, key=lambda x: x[1])[1]
+            leftmost: int = min(digit, key=lambda x: x[0])[0]
+            rightmost: int = max(digit, key=lambda x: x[0])[0]
+            topmost: int = max(digit, key=lambda x: x[1])[1]
+            bottommost: int = min(digit, key=lambda x: x[1])[1]
 
-            delta_x = rightmost - leftmost
-            delta_y = topmost - bottommost
+            delta_x: int = rightmost - leftmost
+            delta_y: int = topmost - bottommost
     
-            extend_factor = 0.35
+            extend_factor: float = 0.35
             topmost     += delta_y * extend_factor
             bottommost  -= delta_y * extend_factor
 
-            new_delta_y = topmost - bottommost
+            new_delta_y: int = topmost - bottommost
 
-            p = (new_delta_y - delta_x) / 2
+            p: float = (new_delta_y - delta_x) / 2
             leftmost -= p
             rightmost += p
 
@@ -117,9 +117,9 @@ class HandTracker:
         return boxes
 
     # Source:  https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb
-    def draw_landmarks_on_image(self, rgb_image, detection_result):
-        hand_landmarks_list = detection_result.hand_landmarks
-        annotated_image = np.copy(rgb_image)
+    def draw_landmarks_on_image(self, rgb_image: mp.Image, detection_result: vision.HandLandmarkerResult) -> mp.Image:
+        hand_landmarks_list: list[list] = detection_result.hand_landmarks
+        annotated_image: mp.Image = np.copy(rgb_image)
 
         # Loop through the detected hands to visualize.
         for idx in range(len(hand_landmarks_list)):
@@ -135,23 +135,23 @@ class HandTracker:
             )
         return annotated_image
 
-    def sketch(self, img, boxes):
+    def sketch(self, frame, boxes) -> NDArray:
         for stroke in self.stroke_points:
             if len(stroke) == 1:
-                cv.circle(img, stroke[0], 2, (0, 255, 0), -1)
+                cv.circle(frame, stroke[0], 2, (0, 255, 0), -1)
             elif len(stroke) > 1:
-                pts = np.array(stroke, dtype=np.float32)
+                pts: NDArray = np.array(stroke, dtype=np.float32)
                 pts = self.chaikin_smooth(pts, iterations=3)
                 pts = pts.astype(np.int32).reshape((-1, 1, 2))
-                cv.polylines(img, [pts], isClosed=False, color=(0, 255, 0), thickness=15)
+                cv.polylines(frame, [pts], isClosed=False, color=(0, 255, 0), thickness=15)
 
         for pairs in boxes:
-            cv.rectangle(img, pairs[0], pairs[1], color=(255, 0, 0), thickness=1)
+            cv.rectangle(frame, pairs[0], pairs[1], color=(255, 0, 0), thickness=1)
 
-        return img
+        return frame
 
-    def get_box_images(self, frame, boxes):
-        image_arrays = []
+    def get_box_images(self, frame, boxes) -> list[NDArray]:
+        image_arrays: list[NDArray] = []
         for pairs in boxes:
             image_arrays.append(frame
                 [
@@ -162,5 +162,5 @@ class HandTracker:
 
         return image_arrays
 
-    def clear_sketch(self):
+    def clear_sketch(self) -> None:
         self.stroke_points.clear()

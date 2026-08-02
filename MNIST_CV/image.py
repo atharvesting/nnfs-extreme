@@ -1,8 +1,9 @@
 # The image processing pipeline will reside here
 import cv2 as cv
 import numpy as np
+from numpy.typing import NDArray
 
-def color_correction(frame):
+def color_correction(frame: NDArray) -> NDArray:
     green_mask = np.all(frame == [0, 255, 0], axis=-1)
     # MNIST convention: digit strokes = white (255), background = black (0)
     frame[green_mask]  = [255, 255, 255]  # drawn stroke → white
@@ -10,34 +11,32 @@ def color_correction(frame):
 
     return frame
 
-def grayscale(frame):
+def grayscale(frame: NDArray) -> NDArray:
     return cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-def blur(frame):
+def blur(frame: NDArray) -> NDArray:
     return cv.blur(frame, (8, 8))
 
-def pixelate(frame, height = 28, width = 28):
-    pixelated = cv.resize(frame, (width, height), interpolation=cv.INTER_LINEAR)
+def pixelate(frame: NDArray, height: int = 28, width: int = 28) -> NDArray:
+    pixelated: NDArray = cv.resize(frame, (width, height), interpolation=cv.INTER_LINEAR)
     return pixelated
 
-def pipeline(img, func_list):
+def pipeline(frame: NDArray, func_list: list[function]) -> NDArray:
     for func in func_list:
-        img = func(img)
+        frame = func(frame)
+    return frame
 
-    return img
+def process_images(frame_list: list[NDArray]) -> None:
+    for i in range(len(frame_list)):
+        frame_list[i] = pipeline(frame_list[i], [color_correction, grayscale, blur, pixelate])
 
-def process_images(img_list):
-    for i in range(len(img_list)):
-        img_list[i] = pipeline(img_list[i], [color_correction, grayscale, blur, pixelate])
-
-def to_flat_arrays(img_list: list[np.ndarray]):
-    flat_list: list[np.ndarray] = []
-    for img in img_list:
-        flat_list.append((img.flatten() / 255.0).astype(np.float32))
-
+def to_flat_arrays(frame_list: list[NDArray]) -> list[NDArray]:
+    flat_list: list[NDArray] = []
+    for frame in frame_list:
+        flat_list.append((frame.flatten() / 255.0).astype(np.float32))
     return flat_list
 
-def to_binary(flat_list: list[np.ndarray]):
-    i = 1
+def to_binary(flat_list: list[np.ndarray]) -> None:
+    i: int = 1
     for array in flat_list:
         array.tofile(f"data/output/binary{i}.bin")

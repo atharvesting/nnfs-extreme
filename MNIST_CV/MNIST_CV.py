@@ -1,5 +1,5 @@
 # Entry point of MNIST_CV
-from looping import start_loop
+from looping import pipe
 
 if __name__ == "__main__":
-    start_loop()
+    pipe()

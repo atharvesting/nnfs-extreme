@@ -88,6 +88,7 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [Pixelating an Image using OpenCV](https://stackoverflow.com/questions/55508615/how-to-pixelate-image-using-opencv-in-python)
 - [Blurring an Image using OpenCV](https://docs.opencv.org/5.0/py_tutorials/py_imgproc/py_filtering/py_filtering.html)
 - [Time Python Module docs](https://docs.python.org/3/library/time.html)
+- [Primer on Python Decorators](https://realpython.com/primer-on-python-decorators/)
 
 ---
 ### AI use disclosure

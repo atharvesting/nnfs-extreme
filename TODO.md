@@ -2,12 +2,14 @@
 
 ### In Progress
 
+
 ### Major
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
 - [ ] Save 3 models for access on GitHub (10-30-784, 10-128-256-512-784, 42(10+32Noise)-128-256-512-784)
 
 ### Minor
-- [ ] (NNFS_Extreme/NN.cpp) Explore multi-threading to handle multiple mini-batches concurrently.
+- [ ] Add ordered predictions in the Webcam UI.
+- [ ] (MNIST_CV/hand_tracking.py) Handle bounding boxes crossing edge exceptions.
 - [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
 
 ### Documentation
@@ -18,7 +20,9 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
-- [x] Implement the image processing pipeline to make drawings MNIST-ready. (2026-08-01)
+- [x] (MNIST_CV/looping.py) Integrate classification inference in the live loop. (2026-08-02)
+- [x] Working binding between NNFS_E and MNIST_CV along with successful inference from drawn digits. (2026-08-01)
+- [x] (MNIST_CV/image.py) Implement the image processing pipeline to make drawings MNIST-ready. (2026-08-01)
 - [x] Add support for independent polylines, bounding boxes, and performance improvements. (2026-07-31)
 - [x] (README.md) Short example codeblock showcasing API. (2026-07-30)
 - [x] (examples/export_model.hpp) Examples: Model binary Import/Export workflow. (2026-07-29)
