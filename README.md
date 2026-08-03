@@ -211,12 +211,13 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [Blurring an Image using OpenCV](https://docs.opencv.org/5.0/py_tutorials/py_imgproc/py_filtering/py_filtering.html)
 - [Time Python Module docs](https://docs.python.org/3/library/time.html)
 - [Primer on Python Decorators](https://realpython.com/primer-on-python-decorators/)
+- [HandLandmarkerResult Docs](https://ai.google.dev/edge/api/mediapipe/python/mp/tasks/vision/HandLandmarkerResult)
 
 ---
 ### AI use disclosure
 
-I would like to be absolutely transparent with the fact that I used AI tools for debugging and helping me understand how Python translates 
-optimally to C++. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I 
+I would like to be absolutely transparent with the fact that I used AI tools for debugging, helping me understand how Python translates 
+optimally to C++, and constructing build instructions. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I 
 made sure to understand each line of code and comment it throughout to document my understanding. I regularly post blogs and to put this 
 understanding into my own words for everyone.
 

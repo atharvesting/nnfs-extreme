@@ -8,7 +8,7 @@
 - [ ] Save 3 models for access on GitHub (10-30-784, 10-128-256-512-784, 42(10+32Noise)-128-256-512-784)
 
 ### Minor
-- [ ] Add ordered predictions in the Webcam UI.
+- [ ] Implement variable stroke width to make digit images more consistent irrespective of sketch size.
 - [ ] (MNIST_CV/hand_tracking.py) Handle bounding boxes crossing edge exceptions.
 - [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
 
@@ -20,6 +20,7 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
+- [x] (MNIST_CV/looping.py) Add ordered predictions in the Webcam UI. (2026-08-02)
 - [x] (README.md) Architecture diagrams and directory structure. (2026-08-02)
 - [x] (MNIST_CV/looping.py) Integrate classification inference in the live loop. (2026-08-02)
 - [x] Working binding between NNFS_E and MNIST_CV along with successful inference from drawn digits. (2026-08-01)

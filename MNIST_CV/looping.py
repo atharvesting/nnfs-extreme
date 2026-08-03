@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 from numpy import ndarray
 
 def loop(func):
+
     def wrapper():
 
         cap = cv.VideoCapture(0)
@@ -28,6 +29,7 @@ def loop(func):
                 break
 
             frame = func(frame, ht, net)
+
             if not isinstance(frame, ndarray):
                 raise TypeError("Function must return a numpy array.")
 
@@ -47,9 +49,11 @@ def loop(func):
 
 @loop
 def pipe(frame: NDArray, ht: HandTracker, net: nnfs.Network) -> NDArray:
+
     ht.detect(frame)
     if ht.latest_result:
         frame = ht.draw_landmarks_on_image(frame, ht.latest_result)
+
     boxes = ht.bounding_boxes()
     frame = ht.sketch(frame, boxes)
     box_images = ht.get_box_images(frame, boxes)
@@ -59,6 +63,7 @@ def pipe(frame: NDArray, ht: HandTracker, net: nnfs.Network) -> NDArray:
     for i, array in enumerate(arrays):
         output = net.feedforward(array)
         predicted = output.index(max(output))
-        print(f"Image {i+1}: digit = {predicted}  (confidence {max(output):.4f})")
+        cv.putText(frame, str(predicted), (50 * (i + 1), 100), fontFace=1, fontScale=4, color=255, thickness=4)
+        # print(f"Image {i+1}: digit = {predicted}  (confidence {max(output):.4f})")
 
     return frame
