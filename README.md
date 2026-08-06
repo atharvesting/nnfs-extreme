@@ -4,7 +4,7 @@ The project-group is part of a mult-layered and multi-faceted progression, which
 
 - [x] Phase 1: [Spalten](https://github.com/atharvesting/spalten-linalg-library) (Foundational Linear Algebra Library)
 - [x] Phase 2: [NNFS-Extreme](#nnfs-extreme) (Neural Network trained on the MNIST dataset) -> Built on top of Spalten
-- [ ] Phase 3: [MNIST-CV (WIP)](#mnist-cv) (CV layer that classifies digits drawn using gestures) -> NNFS-E as the engine
+- [x] Phase 3: [MNIST-CV](#mnist-cv) (CV layer that classifies digits drawn using gestures) -> NNFS-E as the engine
 - [ ] Phase 4: ESP32-MNIST (The entire pipeline running on an ESP32-S3 Sense) -> Using all of the above
 
 ---
@@ -212,6 +212,7 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [Time Python Module docs](https://docs.python.org/3/library/time.html)
 - [Primer on Python Decorators](https://realpython.com/primer-on-python-decorators/)
 - [HandLandmarkerResult Docs](https://ai.google.dev/edge/api/mediapipe/python/mp/tasks/vision/HandLandmarkerResult)
+- [Size of numeric datatypes in C](https://stackoverflow.com/questions/589575/what-does-the-c-standard-say-about-the-size-of-int-long)
 
 ---
 ### AI use disclosure

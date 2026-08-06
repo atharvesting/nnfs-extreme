@@ -6,6 +6,7 @@
 // Implementation Source: https://stackoverflow.com/a/32593825
 class ThreadPool {
 public:
+    ~ThreadPool();
     void Start();
     void QueueJob(const std::function<void()>& job);
     void QueueBatch(const std::vector<std::function<void()>>& job_batch);
@@ -15,6 +16,7 @@ public:
 
 private:
     void ThreadLoop();
+    
     bool should_terminate = false;
     size_t pending_tasks = 0;
     std::mutex queue_mutex;

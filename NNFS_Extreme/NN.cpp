@@ -11,8 +11,6 @@
 #include "activation_functions.hpp"
 #include "utils.hpp"
 
-std::mutex nabla_mutex;
-
 Network::Network(std::vector<int> nw_sizes)
 	: num_layers(nw_sizes.size()), 
 	  sizes(std::move(nw_sizes)), 
@@ -48,12 +46,12 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model file.");
 
 	// Number of layers
-	model.read( reinterpret_cast<char*>(&num_layers), sizeof(size_t) );
+	model.read( reinterpret_cast<char*>(&num_layers), sizeof(uint16_t) );
 	num_param_layers = num_layers - 1;
 
 	// Neurons per layer
 	sizes.resize(num_layers);
-	model.read( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(int) );
+	model.read( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(uint16_t) );
 
 	biases.reserve(num_param_layers);
 	weights.reserve(num_param_layers);
@@ -74,14 +72,14 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	}
 
 	for (auto& weight : weights) {
-		model.read( reinterpret_cast<char*>(&weight.rows), sizeof(size_t) );
-		model.read( reinterpret_cast<char*>(&weight.cols), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(&weight.rows), sizeof(uint16_t) );
+		model.read( reinterpret_cast<char*>(&weight.cols), sizeof(uint16_t) );
 		model.read( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float) );
 	}
 
 	for (auto& bias : biases) {
-		model.read( reinterpret_cast<char*>(&bias.rows), sizeof(size_t) );
-		model.read( reinterpret_cast<char*>(&bias.cols), sizeof(size_t) );
+		model.read( reinterpret_cast<char*>(&bias.rows), sizeof(uint16_t) );
+		model.read( reinterpret_cast<char*>(&bias.cols), sizeof(uint16_t) );
 		model.read( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float) );
 	}
 }
@@ -114,6 +112,7 @@ void Network::SGD(TrainingData training_data, int epochs,
 		int y{sizes[i]};
 		nabla_b_template.emplace_back(Matrix<float>::zeros(y, 1));
 	}
+
 	for (size_t i = 0; i < num_layers - 1; i++)
 	{
 		int x{sizes[i]};
@@ -123,13 +122,15 @@ void Network::SGD(TrainingData training_data, int epochs,
 		nabla_w_template.emplace_back(Matrix<float>::zeros(y, x));
 	}
 
-	for (int i = 0; i < num_layers; i++) {
+	for (int i = 0; i < num_layers; i++) 
+	{
 		activations_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
 		if (i == 0) continue;
 		zs_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
 	}
 
-	for (auto& buffer : buffer_list) {
+	for (auto& buffer : buffer_list) 
+	{
 		buffer.activations = activations_template;
 		buffer.zs = zs_template;
 		buffer.nabla_w = nabla_w_template;
@@ -144,7 +145,7 @@ void Network::SGD(TrainingData training_data, int epochs,
 	pool.Start();
 	Timer timer;
 	float elap{0.0F};
-	std::cout << n_threads << std::endl;
+	
 	for (int j = 0; j < epochs; j++)
 	{
 		timer.reset();
@@ -238,14 +239,6 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, i
 	// Backprop computes the gradients of the cost function with respect to the weights and biases for the entire mini-batch.
 	// The updates to nabla_w and nabla_b are computed in place,
 	backprop(X, Y, buffers);
-
-	// The scale factor does two things at once: 
-	// 		- When training in mini-batches, the gradients calculuated must be averaged over the mini-batch size.
-	// 		- The learning rate is applied to the averaged gradients to update the weights and biases.
-	// Instead of dividing by the batch size in every iteration of the weight/bias update, 
-	// 		we compute the scale factor once and multiply it with the gradients.
-	float scale = eta / static_cast<float>(m);
-
 
 }
 
@@ -367,20 +360,26 @@ std::string Network::export_model(std::string model_directory, std::string datas
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model output file.");
 
 	// Number of layers
-	model.write( reinterpret_cast<char*>(&num_layers), sizeof(size_t) );
+	uint16_t num_layers_u16(num_layers);
+	model.write( reinterpret_cast<char*>(&num_layers_u16), sizeof(uint16_t) );
 
 	// Neurons per layer
-	model.write( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(int) );
+	std::vector<uint16_t> sizes_u16(sizes.begin(), sizes.end());
+	model.write( reinterpret_cast<char*>(sizes_u16.data()), num_layers * sizeof(uint16_t) );
 
 	for (auto& weight : weights) {
-		model.write( reinterpret_cast<char*>(&weight.rows), sizeof(size_t));
-		model.write( reinterpret_cast<char*>(&weight.cols), sizeof(size_t));
+		uint16_t weight_rows_u16(weight.rows);
+		uint16_t weight_cols_u16(weight.cols);
+		model.write( reinterpret_cast<char*>(&weight_rows_u16), sizeof(uint16_t));
+		model.write( reinterpret_cast<char*>(&weight_cols_u16), sizeof(uint16_t));
 		model.write( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float));
 	}
 
 	for (auto& bias : biases) {
-		model.write( reinterpret_cast<char*>(&bias.rows), sizeof(size_t));
-		model.write( reinterpret_cast<char*>(&bias.cols), sizeof(size_t));
+		uint16_t bias_rows_u16(bias.rows);
+		uint16_t bias_cols_u16(bias.cols);
+		model.write( reinterpret_cast<char*>(&bias_rows_u16), sizeof(uint16_t));
+		model.write( reinterpret_cast<char*>(&bias_cols_u16), sizeof(uint16_t));
 		model.write( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float));
 	}
 

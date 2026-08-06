@@ -10,7 +10,7 @@
 * In order to run this function, use `include "examples/model_export_n_import.hpp"` inside NNFS_Extreme.cpp
 * and run model_export_n_import() inside the main function. Feel free to modify this function to your liking.
 */
-void model_export_n_import(int epochs = 20, int mini_batch_size = 32, float learning_rate = 2.0F) {
+void model_export_n_import(int epochs = 30, int mini_batch_size = 32, float learning_rate = 9.0F) {
     std::cout << "Running import-export model example!" << std::endl;
 
 	auto training_data = MNIST_loader::load_training_data("data/mnist_train_images.bin", "data/mnist_train_labels.bin", 50000, false);

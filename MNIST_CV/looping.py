@@ -4,29 +4,21 @@ from hand_tracking import HandTracker
 from image import process_images, to_flat_arrays
 from numpy.typing import NDArray
 from numpy import ndarray
+from typing import Callable
+from frame_source import Source, CVFrameSource, SerialFrameSource
 
-def loop(func):
+def loop(func: Callable):
 
-    def wrapper():
+    def wrapper(source: Source):
 
-        cap = cv.VideoCapture(0)
-        cap.set(3, 640)
-        cap.set(4, 480)
-
-        if not cap.isOpened():
-            print("Couldn't open camera.")
-            exit()
+        if not isinstance(source, Source):
+            raise Exception
         
         ht = HandTracker(num_hands=1)
         net = nnfs.Network("data/output/mnist_784-30-10_ep10_lr2p000.bin")
 
         while True:
-            success, frame = cap.read()
-            frame = cv.flip(frame, 1)
-
-            if not success:
-                print("Can't receive frame.")
-                break
+            frame = source.get_frame()
 
             frame = func(frame, ht, net)
 
@@ -41,9 +33,7 @@ def loop(func):
             elif key == ord('q'):
                 break
 
-        cap.release()
-        cv.destroyAllWindows()
-        
+        source.release()
     return wrapper
 
 
@@ -52,7 +42,7 @@ def pipe(frame: NDArray, ht: HandTracker, net: nnfs.Network) -> NDArray:
 
     ht.detect(frame)
     if ht.latest_result:
-        frame = ht.draw_landmarks_on_image(frame, ht.latest_result)
+        frame = ht.draw_landmarks_on_image(frame, ht.latest_result) # type: ignore
 
     boxes = ht.bounding_boxes()
     frame = ht.sketch(frame, boxes)

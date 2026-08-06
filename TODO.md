@@ -10,7 +10,6 @@
 ### Minor
 - [ ] Implement variable stroke width to make digit images more consistent irrespective of sketch size.
 - [ ] (MNIST_CV/hand_tracking.py) Handle bounding boxes crossing edge exceptions.
-- [ ] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint64_t or uint32_t
 
 ### Documentation
 - [ ] (README.md) Quickstart Guide.
@@ -20,6 +19,10 @@
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓
+- [x] (zPERF_NOTES.md) Fix the accuracy issue with training the standard neural network. (2026-09-06)
+- [x] (MNIST_CV/frame_source.py) Update MNIST_CV to support modularity concerning video input: CV2 and ESP32-S3 CAM (2026-09-06)
+- [x] (ESP32_MNIST) Set up the ESP32 subproject using platformio. (2026-09-06)
+- [x] (NNFS_Extreme/NN.cpp) Change export datatype of parameter matrix dimensions from size_t to uint16t. (2026-09-06)
 - [x] (MNIST_CV/looping.py) Add ordered predictions in the Webcam UI. (2026-08-02)
 - [x] (README.md) Architecture diagrams and directory structure. (2026-08-02)
 - [x] (MNIST_CV/looping.py) Integrate classification inference in the live loop. (2026-08-02)

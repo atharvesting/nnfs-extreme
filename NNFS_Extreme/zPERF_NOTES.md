@@ -1,5 +1,37 @@
 # Notes on Performance (started 2026-07-25 01:15)
 
+2026-09-06
+---
+
+- Noticed that training using the following hyperparameters (epochs=30, batch_size=32, eta=3.0) led to a maximum of 85%
+accuracy on the test dataset. This change was unexpected because the network had already demonstrated over 95% accuracy
+in previous iterations.
+- I noticed that my previous iterations used a batch size = 10 and eta = 3.0 easily led to 94%+ accuracy (this was before
+the threadpool update) and upon trying the same hyperparameters for the new version, I got back to the 94-95% accuracy region.
+The problem was clearly not the program, but the amount of additional iterations the 32-size version required to reach similar
+levels. For now, the steps towards valleys were quite small. Step size = 3.0 (eta) / 32 = 0.09375 compared to 
+step size = 3.0 / 10 = 0.3, 
+which is a 3.2x larger step size, leading to decisive and impactful steps towards the minimum-loss regions. 
+- If distance travelled towards hyperplane minima is approximated by epochs * step size, where step size = eta / batch size,
+then the solution could be reached from two different angles - multiplying either the epochs or eta by ~3.2. Theoretically,
+both ways will lead to favourable accuracy by either giving the small steps enough iterations to accumulate towards minima or
+making bigger steps in the first place.
+- Right now, batch size = 32 results in sub-2 second epochs as a result of the threadpool (about 4 seconds when batch size = 10
+due to inefficient thread use) and increasing epochs by 3x would essentially nullify its benefits. scaling the eta is the superior
+option due to its essentially zero additional cost.
+- The results speak for themselves:
+
+| Metric | (1) Batch Size = 32 ($\eta = 3.0$) | (2) Batch Size = 10 ($\eta = 3.0$) | (3) Batch Size = 32 ($\eta = 9.0$) | Improvement |	
+| --- |	--- | --- | --- | --- |
+Max Accuracy | ~85% | 94.9% | 95.3% | +12% Accuracy comp. to (1) |
+Training Time | 80 seconds | 182 seconds	| 80 seconds | 2.27x Faster (-56%) comp. to (2) |
+
+- The minimal accuracy improvement is definitely a matter of chance. I did not benchmark the two versions properly to draw
+conclusions about the accuracy delta. But the training time is another matter entirely.
+- Going from bs = 10 to bs = 32 also significantly reduces the number of updates made to the weights and biases after each
+batch, about 3.2x fewer times. this contributes to decreasing cpu overhead.
+
+
 2026-08-28
 ---
 - The results and changes in each epoch are dependent on the one before it. The same goes for each mini-batch. This is why
