@@ -8,7 +8,7 @@ int main()
 	// warmup();
 	// standard_mnist();
 	// inverted_mnist();
-	model_export_n_import(30, 32, 9.0F);
+	model_export_n_import(10, 32, 9.0F);
 	
 	return 0;
 }

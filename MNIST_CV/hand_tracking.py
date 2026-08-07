@@ -84,7 +84,7 @@ class HandTracker:
     def bounding_boxes(self) -> list[tuple[tuple[int, int, int]]]:
         boxes: list[tuple[tuple[int, int, int]]] = []
         for digit in self.stroke_points:
-            if len(digit) < 30:
+            if len(digit) < 20:
                 continue
 
             leftmost: int = min(digit, key=lambda x: x[0])[0]

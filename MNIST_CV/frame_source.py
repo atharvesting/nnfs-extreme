@@ -1,12 +1,12 @@
 import cv2 as cv
 import serial
 import numpy as np
-from enum import Enum
-from abc import ABC
+from numpy.typing import NDArray
+from abc import ABC, abstractmethod
 
 class Source(ABC):
     @abstractmethod
-    def get_frame(self):
+    def get_frame(self) -> np.ndarray:
         pass
     @abstractmethod
     def release(self):
@@ -38,25 +38,38 @@ class CVFrameSource(Source):
 class SerialFrameSource(Source):
     def __init__(self, 
                  port: str = 'COM6', 
-                 baud_rate: int = 921600, 
-                 timeout: int = 2, 
-                #  width: int = 320, 
-                #  height: int = 240
+                 baud_rate = 921600, 
+                 timeout = 2,
+                 width: int = 1024, 
+                 height: int = 768
                  ):
         
-        self.ser = serial.Serial(port, baud_rate, timeout)
+        self.ser = serial.Serial(port, baud_rate, timeout=timeout)
+        self.last_frame = np.zeros((height, width, 3), dtype=np.uint8)
 
     def get_frame(self):
-        if self.ser.read(9) == b'START_IMG':
-            size_bytes = self.ser.read(4)
-            img_size = int.from_bytes(size_bytes, byteorder='little')
-            raw_data = self.ser.read(img_size)
 
-            if self.ser.read(7) == b'END_IMG':
-                img_np = np.frombuffer(raw_data, dtype=np.uint8)
-                img = cv.imdecode(img_np, cv.IMREAD_COLOR)
+        header = self.ser.read_until(b'START_IMG')
+        if not header.endswith(b'START_IMG'):
+            return self.last_frame
 
-                return img
+        size_bytes = self.ser.read(4)
+        if len(size_bytes) < 4:
+            return self.last_frame
+
+        img_size = int.from_bytes(size_bytes, byteorder='little')
+        raw_data = self.ser.read(img_size)
+        if len(raw_data) < img_size:
+            return self.last_frame
+
+        if self.ser.read(7) == b'END_IMG':
+            img_np = np.frombuffer(raw_data, dtype=np.uint8)
+            img = cv.imdecode(img_np, cv.IMREAD_COLOR)
+
+            if img is not None:
+                self.last_frame = cv.flip(img, 0)
+
+        return self.last_frame
 
     def release(self):
         self.ser.close()

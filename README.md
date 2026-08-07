@@ -213,6 +213,7 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [Primer on Python Decorators](https://realpython.com/primer-on-python-decorators/)
 - [HandLandmarkerResult Docs](https://ai.google.dev/edge/api/mediapipe/python/mp/tasks/vision/HandLandmarkerResult)
 - [Size of numeric datatypes in C](https://stackoverflow.com/questions/589575/what-does-the-c-standard-say-about-the-size-of-int-long)
+- [ESP32 CAM Setup Guide](https://randomnerdtutorials.com/esp32-cam-ov2640-camera-settings)
 
 ---
 ### AI use disclosure

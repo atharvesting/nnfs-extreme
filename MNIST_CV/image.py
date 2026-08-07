@@ -1,4 +1,5 @@
 # The image processing pipeline will reside here
+from typing import Callable
 import cv2 as cv
 import numpy as np
 from numpy.typing import NDArray
@@ -21,7 +22,7 @@ def pixelate(frame: NDArray, height: int = 28, width: int = 28) -> NDArray:
     pixelated: NDArray = cv.resize(frame, (width, height), interpolation=cv.INTER_LINEAR)
     return pixelated
 
-def pipeline(frame: NDArray, func_list: list[function]) -> NDArray:
+def pipeline(frame: NDArray, func_list: list[Callable]) -> NDArray:
     for func in func_list:
         frame = func(frame)
     return frame

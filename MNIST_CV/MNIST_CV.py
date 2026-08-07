@@ -1,5 +1,4 @@
 # Entry point of MNIST_CV
-
 from looping import pipe
 from frame_source import CVFrameSource, SerialFrameSource
 

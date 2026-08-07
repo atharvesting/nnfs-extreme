@@ -46,41 +46,38 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model file.");
 
 	// Number of layers
-	model.read( reinterpret_cast<char*>(&num_layers), sizeof(uint16_t) );
+	uint16_t num_layers_u16 = 0;
+	model.read( reinterpret_cast<char*>(&num_layers_u16), sizeof(uint16_t) );
+	
+	num_layers = num_layers_u16;
 	num_param_layers = num_layers - 1;
 
 	// Neurons per layer
-	sizes.resize(num_layers);
-	model.read( reinterpret_cast<char*>(sizes.data()), num_layers * sizeof(uint16_t) );
+	std::vector<uint16_t> sizes_u16(num_layers);
+	model.read( reinterpret_cast<char*>(sizes_u16.data()), num_layers * sizeof(uint16_t) );
+
+	sizes.assign(sizes_u16.begin(), sizes_u16.end());
 
 	biases.reserve(num_param_layers);
 	weights.reserve(num_param_layers);
 
-	// Matrix Initialization
-	for (size_t i = 1; i < num_layers; i++)
-	{
-		int y{sizes[i]};
-		biases.emplace_back(Matrix<float>::zeros(y, 1));
-	}
-	for (size_t i = 0; i < num_layers - 1; i++)
-	{
-		int x{sizes[i]};
-		int y{sizes[i + 1]};
-		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
-		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		weights.emplace_back(Matrix<float>::zeros(y, x));
+	for (size_t i = 0; i < num_param_layers; i++) {
+		uint16_t r = 0, c = 0;
+		model.read( reinterpret_cast<char*>(&r), sizeof(uint16_t) );
+		model.read( reinterpret_cast<char*>(&c), sizeof(uint16_t) );
+		Matrix<float> w = Matrix<float>::zeros(r, c);
+		model.read( reinterpret_cast<char*>(w.rix.data()), r * c * sizeof(float) );
+		weights.push_back(std::move(w));
 	}
 
-	for (auto& weight : weights) {
-		model.read( reinterpret_cast<char*>(&weight.rows), sizeof(uint16_t) );
-		model.read( reinterpret_cast<char*>(&weight.cols), sizeof(uint16_t) );
-		model.read( reinterpret_cast<char*>(weight.rix.data()), weight.rows * weight.cols * sizeof(float) );
-	}
+	for (size_t i = 0; i < num_param_layers; i++) {
+		uint16_t r = 0, c = 0;
+		model.read( reinterpret_cast<char*>(&r), sizeof(uint16_t) );
+		model.read( reinterpret_cast<char*>(&c), sizeof(uint16_t) );
 
-	for (auto& bias : biases) {
-		model.read( reinterpret_cast<char*>(&bias.rows), sizeof(uint16_t) );
-		model.read( reinterpret_cast<char*>(&bias.cols), sizeof(uint16_t) );
-		model.read( reinterpret_cast<char*>(bias.rix.data()), bias.rows * bias.cols * sizeof(float) );
+		Matrix<float> b = Matrix<float>::zeros(r, c);
+		model.read( reinterpret_cast<char*>(b.rix.data()), r * c * sizeof(float) );
+		biases.push_back(std::move(b));
 	}
 }
 

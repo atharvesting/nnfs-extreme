@@ -2,7 +2,7 @@ import cv2 as cv
 from frame_source import SerialFrameSource # TODO: Fix import
 
 ser = SerialFrameSource()
-print("Connection established!")
+print("Connection establishedddd!")
 
 while True:
     frame = ser.get_frame()

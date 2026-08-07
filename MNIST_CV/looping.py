@@ -15,11 +15,11 @@ def loop(func: Callable):
             raise Exception
         
         ht = HandTracker(num_hands=1)
-        net = nnfs.Network("data/output/mnist_784-30-10_ep10_lr2p000.bin")
+        net = nnfs.Network("data/output/mnist_784-30-10_ep30_lr9p000.bin")
 
         while True:
             frame = source.get_frame()
-
+            frame = cv.flip(frame, 1)
             frame = func(frame, ht, net)
 
             if not isinstance(frame, ndarray):
@@ -34,6 +34,7 @@ def loop(func: Callable):
                 break
 
         source.release()
+        
     return wrapper
 
 
