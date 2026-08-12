@@ -196,6 +196,16 @@ graph TD
 | `nnfs_extreme.pyd` | pybind11 C++ extension — exposes `Network(model_path)` and `feedforward(array)` |
 
 ---
+## ESP32-MNIST
+
+The final phase of this progression takes things towards aggressive optimisation and TinyML. The goal for this phase is to run the entire
+data streaming and inference pipeline -- Live video stream -> Drawing Digits -> Real-time classification -- on the ESP32-S3 Sense Board, 
+which features 8MB PSRAM and 8MB Flash.
+
+Apart from the obvious challenges, a major obstacle to be dealt with will be running the hand landmarking model (sourced from Google's
+Mediapipe Docs) on the microcontroller, since the model file already occupies over 8MB of space.
+
+---
 
 I plan to write about this project in my blog which you can find on [Medium](https://atharvesting.medium.com/) or [Substack](https://atharvesting.substack.com/).
 
@@ -214,6 +224,7 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [HandLandmarkerResult Docs](https://ai.google.dev/edge/api/mediapipe/python/mp/tasks/vision/HandLandmarkerResult)
 - [Size of numeric datatypes in C](https://stackoverflow.com/questions/589575/what-does-the-c-standard-say-about-the-size-of-int-long)
 - [ESP32 CAM Setup Guide](https://randomnerdtutorials.com/esp32-cam-ov2640-camera-settings)
+- [OpenCV VideoCapture Set Enum Info](https://docs.opencv.org/3.4.20/dc/d3d/videoio_8hpp.html)
 
 ---
 ### AI use disclosure

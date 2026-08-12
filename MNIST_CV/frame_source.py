@@ -1,7 +1,6 @@
 import cv2 as cv
 import serial
 import numpy as np
-from numpy.typing import NDArray
 from abc import ABC, abstractmethod
 
 class Source(ABC):

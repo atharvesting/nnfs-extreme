@@ -9,14 +9,12 @@
 
 ### Minor
 - [ ] Implement variable stroke width to make digit images more consistent irrespective of sketch size.
-- [ ] (MNIST_CV/hand_tracking.py) Handle bounding boxes crossing edge exceptions.
 
 ### Documentation
 - [ ] (README.md) Add the ESP32-MNIST Section.
 - [ ] (README.md) Quickstart Guide.
 
 ### Backlog
-- [ ] Additional storage for weights and biases for the best performing parameters.
 - [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
 
 ### Completed ✓

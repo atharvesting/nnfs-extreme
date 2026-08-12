@@ -81,7 +81,7 @@ class HandTracker:
             else:
                 self.drawing_active = False
 
-    def bounding_boxes(self) -> list[tuple[tuple[int, int, int]]]:
+    def bounding_boxes(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
         boxes: list[tuple[tuple[int, int, int]]] = []
         for digit in self.stroke_points:
             if len(digit) < 20:
@@ -153,12 +153,12 @@ class HandTracker:
     def get_box_images(self, frame, boxes) -> list[NDArray]:
         image_arrays: list[NDArray] = []
         for pairs in boxes:
-            image_arrays.append(frame
-                [
-                    pairs[1][1]:pairs[0][1],
-                    pairs[0][0]:pairs[1][0]
-                ]
-            )
+            crop = frame[
+                pairs[1][1]:pairs[0][1],
+                pairs[0][0]:pairs[1][0]
+            ]
+            if crop.size > 0:
+                image_arrays.append(crop)
 
         return image_arrays
 

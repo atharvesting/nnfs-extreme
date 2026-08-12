@@ -194,8 +194,6 @@ void Network::SGD(TrainingData training_data, int epochs,
 				}
 			}
 		}
-		
-
 		elap += timer.elapsed();
 		float avg = elap / static_cast<float>(j + 1);
 		if (!test_data.empty())
@@ -249,13 +247,14 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 		const Matrix<float> &b = biases[i];			// [neurons x 1]
 		const Matrix<float> &w = weights[i];		// [neurons x prev_neurons]
 
+		// Broadcasting the bias matrix into 2d for GEMM
 		Matrix<float> z(b.rows, activation.cols);
 		for (size_t r = 0; r < z.rows; r++) {
 			for (size_t c = 0; c < z.cols; c++) {
 				z(r, c) = b(r, 0);
 			}
 		}
-		gemm(1.0F, w, activation, 1.0F, z); 	// [neurons x m]
+		gemm(1.0F, w, activation, 1.0F, z); 		// [neurons x m]
 		buffers.zs[i] = z;
 		activation = act::sigmoid(z);
 		buffers.activations[i + 1] = activation;
