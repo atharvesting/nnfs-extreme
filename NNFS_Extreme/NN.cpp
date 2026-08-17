@@ -30,7 +30,8 @@ Network::Network(std::vector<int> nw_sizes)
 		int y{sizes[i + 1]};
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		weights.emplace_back(mat_random_normal(y, x));
+		float he_variance = 2.0F / x;  // where x = fan-in
+		weights.emplace_back(mat_random_normal(y, x, 0, he_variance));
 	}
 	for (size_t i = 1; i < num_layers; i++)
 	{

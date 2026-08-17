@@ -9,6 +9,7 @@ add_library(nnfs_core STATIC
     "activation_functions.cpp"
     "utils.cpp"
 )
+set_property(TARGET nnfs_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET nnfs_core PROPERTY CXX_STANDARD 20)
 set_property(TARGET nnfs_core PROPERTY CXX_SCAN_FOR_MODULES OFF)
 target_include_directories(nnfs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -19,6 +20,7 @@ add_executable(NNFS_Extreme
     "NNFS_Extreme.cpp"
     "utils.hpp"
     "examples/model_export_n_import.hpp"
+    examples/import_model.hpp
 )
 set_property(TARGET NNFS_Extreme PROPERTY CXX_STANDARD 20)
 target_link_libraries(NNFS_Extreme PRIVATE nnfs_core)

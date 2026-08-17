@@ -15,9 +15,10 @@
 - [ ] (README.md) Quickstart Guide.
 
 ### Backlog
-- [ ] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc.
+
 
 ### Completed ✓
+- [x] Matmul research for gemm: Block tiling, Right Matrix Transpose, Combinations etc. (2026-08-17)
 - [x] (MNIST_CV/frame_source.py) Fix the ESP32 CAM feed compatibility with MNIST_CV. (2026-08-07)
 - [x] (NNFS_Extreme/NN.cpp) Fix the import NN constructor to properly accomodate uint16_t data. (2026-08-07)
 - [x] (zPERF_NOTES.md) Fix the accuracy issue with training the standard neural network. (2026-08-06)
