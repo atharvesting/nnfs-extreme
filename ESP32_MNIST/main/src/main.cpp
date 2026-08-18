@@ -4,6 +4,9 @@
 #include <I2S.h>
 #include <Wire.h>
 #include <SPI.h>
+#include "NN_ESP.hpp"
+#include "parameters.hpp"
+#include "img.hpp"
 
 #define CAMERA_MODEL_XIAO_ESP32S3
 #include "camera_pins.h"
@@ -87,37 +90,44 @@ void setup() {
 
   Wire.begin(4, 2);
 
-  CameraParameters();
-  Serial.println("Camera OK!");
+  // CameraParameters();
+  // Serial.println("Camera OK!");
 
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println("OLED not working!");
-    while (1);
-  }
+  // if (!oled.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+  //   Serial.println("OLED not working!");
+  //   while (1);
+  // }
 
-  oled.clearDisplay();
-  oled.setTextSize(2);
-  oled.setTextColor(SSD1306_WHITE);
-
+  // oled.clearDisplay();
+  // oled.setTextSize(2);
+  // oled.setTextColor(SSD1306_WHITE);
 }
 
 void loop() {
   
-  oled.clearDisplay();
-  oled.setCursor(2, 10);
-  oled.print("ESP-MNIST");
-  oled.display();
+  // oled.clearDisplay();
+  // oled.setCursor(2, 10);
+  // oled.print("ESP-MNIST");
+  // oled.display();
 
-  camera_fb_t *fb = esp_camera_fb_get();
-  if (!fb) {
-    Serial.println("Failed to access camera buffer!");
-    return;
-  }
+  // camera_fb_t *fb = esp_camera_fb_get();
+  // if (!fb) {
+  //   Serial.println("Failed to access camera buffer!");
+  //   return;
+  // }
 
-  Serial.print("START_IMG");
-  Serial.write((uint8_t*)&fb->len, sizeof(fb->len));
-  Serial.write(fb->buf, fb->len);
-  Serial.print("END_IMG");
+  // Serial.print("START_IMG");
+  // Serial.write((uint8_t*)&fb->len, sizeof(fb->len));
+  // Serial.write(fb->buf, fb->len);
+  // Serial.print("END_IMG");
 
-  esp_camera_fb_return(fb);
+  // esp_camera_fb_return(fb);
+
+  Matrix<float> image(784, 1, img);
+  auto output = feedforward(image, weights, biases, 2);
+  auto pred = _argmax(output);
+
+  Serial.print("Prediction: ");
+  Serial.println(pred);
+  return;
 }

@@ -3,6 +3,7 @@
 #include <thread>
 #include <functional>
 #include <condition_variable>
+#include "NN.hpp"
 
 // Implementation Source: https://stackoverflow.com/a/32593825
 class ThreadPool {
@@ -50,6 +51,9 @@ std::vector<std::pair<int, int>> create_ranges(std::vector<T>& container, int th
         ranges.push_back({ static_cast<int>(start), static_cast<int>(end) });
         start += current_chunk_size;
     }
+
     return ranges;
 }
+
+void model_to_file(const Network& net);
 

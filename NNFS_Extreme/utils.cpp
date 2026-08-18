@@ -1,8 +1,11 @@
 #include <cmath>
 #include <string>
+#include <fstream>
 #include <Spalten/Matrix.hpp>
 #include <Spalten/Utils.hpp>
+#include <NN.hpp>
 #include "utils.hpp"
+
 
 void ThreadPool::Start() {
     const int num_threads = std::thread::hardware_concurrency();
@@ -102,4 +105,39 @@ void warmup() {
     auto B = mat_random_int_range(1000, 1000, 1, 20);
     volatile auto C = A * B;
     std::cout << "Warmup time: " << t.elapsed() << " seconds." << std::endl;
+}
+
+void model_to_file(const Network& net) {
+    std::ofstream file("model.txt", std::ios::out);
+    if (!file.is_open()) {
+        return;
+    }
+
+    file << "const std::vector<Matrix<float>> weights = {\n";
+    for (size_t i = 0; i < net.num_param_layers; i++) {
+        const auto& w = net.weights[i];
+        file << "\tMatrix<float>(" << w.rows << ", " << w.cols << ", {";
+        for (size_t n = 0; n < w.rix.size(); n++) {
+            if (n % 50 == 0) file << "\n\t\t";
+            file << w.rix[n] << ", ";
+        }
+        if (i + 1 != net.num_param_layers) file << "\n\t}), \n";
+        else file << "\n\t})\n";
+    }
+    file << "};\n";
+
+    file << "const std::vector<Matrix<float>> biases = {\n";
+    for (size_t i = 0; i < net.num_param_layers; i++) {
+        const auto& b = net.biases[i];
+        file << "\tMatrix<float>(" << b.rows << ", " << b.cols << ", {";
+        for (size_t n = 0; n < b.rix.size(); n++) {
+            if (n % 50 == 0) file << "\n\t\t";
+            file << b.rix[n] << ", ";
+        }
+        if (i + 1 != net.num_param_layers) file << "\n\t}), \n";
+        else file << "\n\t})\n";
+    }
+    file << "};\n";
+
+    file.close();
 }

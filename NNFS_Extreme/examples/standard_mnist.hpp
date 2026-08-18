@@ -2,6 +2,7 @@
 #include <iostream>
 #include "NN.hpp"
 #include "data_loaders.hpp"
+#include "utils.hpp"
 
 /*
 * In order to run this function, use `include "examples/standard_mnist.hpp"` inside NNFS_Extreme.cpp
@@ -21,5 +22,7 @@ void standard_mnist(int epochs=30, int mini_batch_size=32, float learning_rate=9
 	std::cout << "Network initialized.\n\n";
 
 	nn.SGD(training_data, epochs, mini_batch_size, learning_rate, test_data);
+
+	model_to_file(nn);
 
 }
