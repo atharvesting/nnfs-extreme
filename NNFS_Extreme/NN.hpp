@@ -12,6 +12,23 @@ using TestSample		= std::pair<Matrix<float>, int>;
 // Traditional MNIST: TestData simply contains a vector of TestSample's
 using TestData			= std::vector<TestSample>;
 
+enum class Threading {
+    Single,
+    Multi
+};
+
+struct Config {
+    std::string train_images;
+    std::string test_images;
+    std::string train_labels;
+    std::string test_labels;
+    int epochs;
+    int mini_batch_size;
+    float learning_rate;
+    std::vector<int> topology;
+    Threading thread_count;
+};
+
 struct Buffers {
 	std::vector<Matrix<float>> activations;
 	std::vector<Matrix<float>> zs;
@@ -90,6 +107,6 @@ private:
 	/// @param mat The input matrix.
 	/// @return A matrix containing the sum of elements in each row.
 	static Matrix<float> row_sum(const Matrix<float>& m);
-	
+
 };
 

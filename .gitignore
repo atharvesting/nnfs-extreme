@@ -24,3 +24,7 @@ nnfs-venv/
 MNIST_CV/model/
 
 __pycache__/
+
+model.txt
+img.txt
+diagram.mermaid

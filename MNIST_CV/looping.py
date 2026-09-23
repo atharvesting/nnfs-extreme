@@ -5,7 +5,8 @@ from image import process_images, to_flat_arrays
 from numpy.typing import NDArray
 from numpy import ndarray
 from typing import Callable
-from frame_source import Source, CVFrameSource, SerialFrameSource
+from frame_source import Source
+
 
 def loop(func: Callable):
 
@@ -14,30 +15,31 @@ def loop(func: Callable):
         ht = HandTracker(num_hands=1)
         net = nnfs.Network("data/output/mnist_784-30-10_ep30_lr9p000.bin")
 
-        while True:
-            frame = source.get_frame()
-            frame = cv.flip(frame, 1)
-            
-            frame = func(frame, ht, net)
+        try:
+            while True:
+                frame = source.get_frame()
+                frame = cv.flip(frame, 1)
+                
+                frame = func(frame, ht, net)
 
-            if not isinstance(frame, ndarray):
-                raise TypeError("Function must return a numpy array.")
+                if not isinstance(frame, ndarray):
+                    raise TypeError("Function must return a numpy array.")
 
-            cv.imshow('Camera', frame)
+                cv.imshow('Camera', frame)
 
-            key = cv.waitKey(1) & 0xFF
-            if key == ord('c'):
-                ht.clear_sketch()
-            elif key == ord('q'):
-                break
-
-        source.release()
+                key = cv.waitKey(1) & 0xFF
+                if key == ord('c'):
+                    ht.clear_sketch()
+                elif key == ord('q'):
+                    break
+        finally:
+            source.release()
         
     return wrapper
 
 
 @loop
-def pipe(frame: NDArray, width: int, height: int, ht: HandTracker, net: nnfs.Network) -> NDArray:
+def pipe(frame: NDArray, ht: HandTracker, net: nnfs.Network) -> NDArray:
 
     ht.detect(frame)
     if ht.latest_result:

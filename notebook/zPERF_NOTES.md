@@ -1,5 +1,25 @@
 # Notes on Performance (started 2026-07-25 01:15)
 
+2026-09-22
+---
+- Here are the results of the NN with a 728-128-30-10 topology:
+    ```Output
+    Epoch 0: 9207 / 10000 in 3.400761 seconds/epoch
+    Epoch 5: 9692 / 10000 in 3.4902685 seconds/epoch
+    Epoch 10: 9741 / 10000 in 3.5094476 seconds/epoch
+    Epoch 15: 9746 / 10000 in 3.5133014 seconds/epoch
+    Epoch 20: 9763 / 10000 in 3.5174725 seconds/epoch
+    Epoch 25: 9752 / 10000 in 3.5140538 seconds/epoch
+    Epoch 29: 9789 / 10000 in 3.5280585 seconds/epoch
+    Total Training (+ Testing) Time = 165.714
+    ```
+- The much higher parameter count (~100k vs ~22k) led to noticeable
+improvement in classification accuracy to 97.89% (+2.3% of 728-30-10). The reason
+can likely be attributed to the denser net being able to track more complex
+patterns in the digits, leading to a higher success rate with edge cases.
+- The time performance cost is real, but expected. A delta of +2.9s per epoch.
+
+
 2026-09-06
 ---
 
@@ -9,9 +29,9 @@ in previous iterations.
 - I noticed that my previous iterations used a batch size = 10 and eta = 3.0 easily led to 94%+ accuracy (this was before
 the threadpool update) and upon trying the same hyperparameters for the new version, I got back to the 94-95% accuracy region.
 The problem was clearly not the program, but the amount of additional iterations the 32-size version required to reach similar
-levels. For now, the steps towards valleys were quite small. Step size = 3.0 (eta) / 32 = 0.09375 compared to 
-step size = 3.0 / 10 = 0.3, 
-which is a 3.2x larger step size, leading to decisive and impactful steps towards the minimum-loss regions. 
+levels. For now, the steps towards valleys were quite small. Step size = 3.0 (eta) / 32 = 0.09375 compared to
+step size = 3.0 / 10 = 0.3,
+which is a 3.2x larger step size, leading to decisive and impactful steps towards the minimum-loss regions.
 - If distance travelled towards hyperplane minima is approximated by epochs * step size, where step size = eta / batch size,
 then the solution could be reached from two different angles - multiplying either the epochs or eta by ~3.2. Theoretically,
 both ways will lead to favourable accuracy by either giving the small steps enough iterations to accumulate towards minima or
@@ -21,7 +41,7 @@ due to inefficient thread use) and increasing epochs by 3x would essentially nul
 option due to its essentially zero additional cost.
 - The results speak for themselves:
 
-| Metric | (1) Batch Size = 32 ($\eta = 3.0$) | (2) Batch Size = 10 ($\eta = 3.0$) | (3) Batch Size = 32 ($\eta = 9.0$) | Improvement |	
+| Metric | (1) Batch Size = 32 ($\eta = 3.0$) | (2) Batch Size = 10 ($\eta = 3.0$) | (3) Batch Size = 32 ($\eta = 9.0$) | Improvement |
 | --- |	--- | --- | --- | --- |
 Max Accuracy | ~85% | 94.9% | 95.3% | +12% Accuracy comp. to (1) |
 Training Time | 80 seconds | 182 seconds	| 80 seconds | 2.27x Faster (-56%) comp. to (2) |
@@ -35,7 +55,7 @@ batch, about 3.2x fewer times. this contributes to decreasing cpu overhead.
 2026-08-28
 ---
 - The results and changes in each epoch are dependent on the one before it. The same goes for each mini-batch. This is why
-multithreading could only be implemented on the level of the training samples in each mini-batch, where the samples where 
+multithreading could only be implemented on the level of the training samples in each mini-batch, where the samples where
 distributed among threads.
 - A particular and difficult challenge that arose with the idea of concurrency was managing activation, z's, and nabla (w&b) buffers.
 Since each group of training samples would accumulate their own gradient, each thread needed to have access to their
@@ -45,7 +65,7 @@ is what thread pooling is best for. Thread pooling eliminates the significant sp
 and throwing tasks at them continuously.
 - Given the sequential epoch and mini-batch dependency, it is also important to ensure that all threads are done with working on their
 set of training samples before moving on to the next mini-batch.
-- Using a custom (see NNFS_Extreme\utils.hpp for code source) `ThreadPool` class, pooling of threads could be initialized and set up 
+- Using a custom (see NNFS_Extreme\utils.hpp for code source) `ThreadPool` class, pooling of threads could be initialized and set up
 outside the epoch loop itself to be used throughout the training process, effectively eliminating the primary setback associated with
 concurrent programs.
 - The results weren't expected...
@@ -82,7 +102,7 @@ Epoch 19: 9401 / 10000 in 1.9638792 seconds/epoch
 2026-07-25 (Midnight)
 ---
 Matmul:
-- Switching from debug to release mode led to a 7.5x performance increase or approx. 86% reduction in training time per epoch. 
+- Switching from debug to release mode led to a 7.5x performance increase or approx. 86% reduction in training time per epoch.
 This improvement is unsurprising but worth noting. (01:15)
 - Using the ikj matmul form over ijk led to almost 1.8x performance or approx. 45% reduction in training time per epoch. (01:17)
 - TODO: Naive operation combinations (z = w * a + b) Vs gemm function (z = gemm(alpha, w, a, beta, b, z)). (01:18)
@@ -102,7 +122,7 @@ This improvement is unsurprising but worth noting. (01:15)
     - Reusable buffers for nabla, activations and zs
 
 ...the average training time per epoch is approx. 4.25s, leading to a total training time of 4.25 * 30 = 128 seconds.
-Considering Nielsen (see README.md) 
+Considering Nielsen (see README.md)
 [estimated](http://neuralnetworksanddeeplearning.com/chap1.html#:~:text=Note%20that%20if%20you%27re%20running%20the%20code%20as%20you%20read%20along%2C%20it%20will%20take%20some%20time%20to%20execute%20%2D%20for%20a%20typical%20machine%20%28as%20of%202015%29%20it%20will%20likely%20take%20a%20few%20minutes%20to%20run%2E)
 the training time to be around a few minutes (I will assume 3 minutes) to execute SGD() on a 2015 machine with normal specs as well a
 Python-Numpy stack, I should be able to target a 2x performance improvement for my future iterations.

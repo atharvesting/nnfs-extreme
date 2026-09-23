@@ -4,8 +4,10 @@
 
 
 ### Major
+- [ ] Support for single- and multi-threaded execution.
 - [ ] Train and export a 42(10+32Noise)-128-256-512-784 topology model with LeakyRELU.
 - [ ] Save 3 models for access on GitHub (10-30-784, 10-128-256-512-784, 42(10+32Noise)-128-256-512-784)
+- [ ] Option for serial/threadpooled SGD.
 
 ### Minor
 - [ ] Implement variable stroke width to make digit images more consistent irrespective of sketch size.
