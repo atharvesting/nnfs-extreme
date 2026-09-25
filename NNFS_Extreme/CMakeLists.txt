@@ -3,8 +3,11 @@
 #
 
 # ── Shared core (compiled once, linked by both targets) ─────────────────────
+find_package(TBB REQUIRED)
+
 add_library(nnfs_core STATIC
     "NN.cpp"
+    "benchmark_harness.cpp"
     "data_loaders.cpp"
     "activation_functions.cpp"
     "utils.cpp"
@@ -13,7 +16,7 @@ set_property(TARGET nnfs_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET nnfs_core PROPERTY CXX_STANDARD 20)
 set_property(TARGET nnfs_core PROPERTY CXX_SCAN_FOR_MODULES OFF)
 target_include_directories(nnfs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(nnfs_core PUBLIC Spalten)
+target_link_libraries(nnfs_core PUBLIC Spalten TBB::tbb)
 
 # ── Executable target ────────────────────────────────────────────────────────
 add_executable(NNFS_Extreme

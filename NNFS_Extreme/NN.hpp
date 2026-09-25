@@ -1,4 +1,5 @@
 #pragma once
+#include "benchmark_harness.hpp"
 #include <vector>
 #include <string>
 #include <Spalten/Matrix.hpp>
@@ -11,23 +12,6 @@ using TrainingData		= std::vector<TrainingSample>;
 using TestSample		= std::pair<Matrix<float>, int>;
 // Traditional MNIST: TestData simply contains a vector of TestSample's
 using TestData			= std::vector<TestSample>;
-
-enum class Threading {
-    Single,
-    Multi
-};
-
-struct Config {
-    std::string train_images;
-    std::string test_images;
-    std::string train_labels;
-    std::string test_labels;
-    int epochs;
-    int mini_batch_size;
-    float learning_rate;
-    std::vector<int> topology;
-    Threading thread_count;
-};
 
 struct Buffers {
 	std::vector<Matrix<float>> activations;
@@ -50,17 +34,18 @@ public:
 	std::vector<int> sizes;
 	std::vector<Matrix<float>> biases;
 	std::vector<Matrix<float>> weights;
-	bool test_data_provided;
-	int epochs;
-	int eta;
+    TrainingData training_data;
+    TestData test_data;
+    Config config;
+    Observability observe;
 
 	/// @brief Constructs a neural network with the specified layer sizes.
 	/// @param nw_sizes A vector containing the number of neurons in each layer (including input and output layers).
-	explicit Network(std::vector<int> sizes);
+	explicit Network(Config config);
 
 	/// @brief Constructs a neural network using the file containing network data.
 	/// @param model_path Path to the network data.
-	explicit Network(const std::string& model_path);
+	explicit Network(const std::string& model_path, Config& config);
 
 	/// @brief Feeds forward the input through the network.
 	/// @param a Input matrix.
@@ -68,13 +53,9 @@ public:
 	Matrix<float> feedforward(Matrix<float> a) const;
 
 	/// @brief Stochastic Gradient Descent (SGD) algorithm for training the neural network.
-	/// @param training_data A vector of TrainingSample pairs (input matrix, output matrix).
-	/// @param epochs Number of epochs to train for.
-	/// @param min_batch_size Size of each mini-batch.
-	/// @param eta Learning rate.
-	/// @param test_data A vector of TestSample pairs (input matrix, digit label).
+
 	/// @return A pair containing the final weights and biases after training.
-	void SGD(TrainingData training_data, int epochs, int min_batch_size, float eta, const TestData& test_data);
+	void SGD();
 
 	/// @brief Export the model parameters as a custom binary. Imported using the file constructor.
 	/// @param model_path The path+filename as the export location.
@@ -85,7 +66,7 @@ private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.
 	/// @param mini_batch A vector of TrainingSample pairs (input matrix, output matrix).
 	/// @param eta Learning rate.
-	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, int start, int end, Buffers& buffers, float eta);
+	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, int start, int end, Buffers& buffers);
 
 	/// @brief Computes the gradients of the cost function with respect to the weights and biases.
 	/// @param X Input matrix.

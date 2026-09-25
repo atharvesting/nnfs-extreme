@@ -2,19 +2,21 @@
 #include <vector>	 // vector
 #include <assert.h>	 // assert
 #include <random>	 // shuffle, mt19937, random_device
-#include <algorithm> // max_element, min
+#include <algorithm> // max_element, min, max
 #include <fstream> 	 // ifstream, ofstream
 #include <thread>    // thread
 #include <Spalten/Matrix.hpp>
 #include <Spalten/Utils.hpp>
 #include "NN.hpp"
 #include "activation_functions.hpp"
+#include "benchmark_harness.hpp"
+#include "data_loaders.hpp"
 #include "utils.hpp"
 
-Network::Network(std::vector<int> nw_sizes)
-	: num_layers(nw_sizes.size()), 
-	  sizes(std::move(nw_sizes)), 
-	  num_param_layers(num_layers - 1), eta(0), epochs(0), test_data_provided(true)
+Network::Network(Config config)
+	: config(config), num_layers(config.topology.size()),
+	  sizes(std::move(config.topology)),
+	  num_param_layers(num_layers - 1), observe(config)
 {
 	assert(sizes.size() > 1);
 
@@ -30,18 +32,23 @@ Network::Network(std::vector<int> nw_sizes)
 		int y{sizes[i + 1]};
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		float he_variance = 2.0F / x;  // where x = fan-in
-		weights.emplace_back(mat_random_normal(y, x, 0, he_variance));
+		float stddev = std::sqrt(2.0F / (sizes.front() + sizes.back()));  // where x = fan-in
+		weights.emplace_back(mat_random_normal(y, x, 0, stddev));
 	}
 	for (size_t i = 1; i < num_layers; i++)
 	{
 		int y{sizes[i]};
-		biases.emplace_back(mat_random_normal(y, 1));
+		biases.emplace_back(Matrix<float>(y, 1, 0));
 	}
-	
+    training_data = MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, false);
+	std::cout << "Training data loaded.\n";												// inverted_data = false
+
+	test_data = MNIST_loader::load_test_data(config.test_images, config.test_labels, 10000);
+	std::cout << "Test data loaded.\n";
+
 }
 
-Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_provided(true) {
+Network::Network(const std::string& model_path, Config& config) : config(config), observe(config) {
 	std::ifstream model(model_path, std::ios::binary);
 
 	if (!model.is_open()) throw std::runtime_error("Couldn't open model file.");
@@ -49,7 +56,7 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	// Number of layers
 	uint16_t num_layers_u16 = 0;
 	model.read( reinterpret_cast<char*>(&num_layers_u16), sizeof(uint16_t) );
-	
+
 	num_layers = num_layers_u16;
 	num_param_layers = num_layers - 1;
 
@@ -57,7 +64,7 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	std::vector<uint16_t> sizes_u16(num_layers);
 	model.read( reinterpret_cast<char*>(sizes_u16.data()), num_layers * sizeof(uint16_t) );
 
-	sizes.assign(sizes_u16.begin(), sizes_u16.end());
+	config.topology.assign(sizes_u16.begin(), sizes_u16.end());
 
 	biases.reserve(num_param_layers);
 	weights.reserve(num_param_layers);
@@ -82,131 +89,183 @@ Network::Network(const std::string& model_path) : eta(0), epochs(0), test_data_p
 	}
 }
 
-void Network::SGD(TrainingData training_data, int epochs,
-				  int min_batch_size, float eta, const TestData& test_data)
+void Network::SGD()
 {
-	Timer master;
-	if (test_data.empty()) test_data_provided = false;
-	this->eta = eta; 
-	this->epochs = epochs;
+	Timer master, train_test_timer;
+    float time_train=0.0F, time_test=0.0F;
+    size_t n_test = test_data.size();	   // Number of testing pairs
+    size_t n_train = training_data.size(); // Number of training pairs
+    float accuracy=0.0F;
+    std::mt19937 rng{std::random_device{}()};
 
-	assert(min_batch_size > 0);
-	assert(epochs > 0);
-	assert(eta > 0.0F);
-	assert(training_data.size() > 0);
+    auto batch_prep = [&, this]() {
+      // Shuffling ensures that a lot of similar data isn't batched together
+      // (due to sorted datasets), 		which can lead to slower descent and
+      // overfitting. It also ensures that the model sees a diverse set of
+      // examples in each epoch.
+      std::shuffle(training_data.begin(), training_data.end(), rng);
 
-	auto n_threads = std::thread::hardware_concurrency();
+      std::vector<TrainingData> mini_batches;
+      mini_batches.reserve((n_train + config.mini_batch_size) / config.mini_batch_size);
 
-	std::vector<Buffers> buffer_list;
-	for (int i = 0; i < n_threads; i++) buffer_list.emplace_back(num_layers);
+      // Create mini-batches from the shuffled training data.
+      for (size_t k = 0; k < n_train; k += config.mini_batch_size) {
+        auto current_size =
+            std::min(config.mini_batch_size, static_cast<int>(n_train - k));
+        mini_batches.emplace_back(std::vector<TrainingSample>(
+            training_data.begin() + k,
+            training_data.begin() + k + current_size));
+      }
+      return mini_batches;
+    };
 
-	std::vector<Matrix<float>> nabla_w_template;
-	std::vector<Matrix<float>> nabla_b_template;
-	std::vector<Matrix<float>> activations_template;
-	std::vector<Matrix<float>> zs_template;
+    std::vector<Matrix<float>> nabla_w_template;
+    std::vector<Matrix<float>> nabla_b_template;
+    std::vector<Matrix<float>> activations_template;
+    std::vector<Matrix<float>> zs_template;
 
-	for (size_t i = 1; i < num_layers; i++)
-	{
-		int y{sizes[i]};
-		nabla_b_template.emplace_back(Matrix<float>::zeros(y, 1));
-	}
+    for (size_t i = 1; i < num_layers; i++)
+    {
+        int y{sizes[i]};
+        nabla_b_template.emplace_back(Matrix<float>::zeros(y, 1));
+    }
 
-	for (size_t i = 0; i < num_layers - 1; i++)
-	{
-		int x{sizes[i]};
-		int y{sizes[i + 1]};
-		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
-		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		nabla_w_template.emplace_back(Matrix<float>::zeros(y, x));
-	}
+    for (size_t i = 0; i < num_layers - 1; i++)
+    {
+        int x{sizes[i]};
+        int y{sizes[i + 1]};
+        // Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
+        // This makes it multipliable with the left layer's output vector (x rows by 1 column)
+        nabla_w_template.emplace_back(Matrix<float>::zeros(y, x));
+    }
 
-	for (int i = 0; i < num_layers; i++) 
-	{
-		activations_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
-		if (i == 0) continue;
-		zs_template.emplace_back(Matrix<float>::zeros(sizes[i], min_batch_size));
-	}
+    for (int i = 0; i < num_layers; i++)
+    {
+        activations_template.emplace_back(Matrix<float>::zeros(sizes[i], config.mini_batch_size));
+        if (i == 0) continue;
+        zs_template.emplace_back(Matrix<float>::zeros(sizes[i], config.mini_batch_size));
+    }
 
-	for (auto& buffer : buffer_list) 
-	{
-		buffer.activations = activations_template;
-		buffer.zs = zs_template;
-		buffer.nabla_w = nabla_w_template;
-		buffer.nabla_b = nabla_b_template;
-	}
+    // Single-threaded Training + Testing
+    if (config.thread_state == Threading::Single)
+    {
+        Buffers single_buffer(num_layers);
+        single_buffer.activations = std::move(activations_template);
+        single_buffer.zs = std::move(zs_template);
+        single_buffer.nabla_w = std::move(nabla_w_template);
+        single_buffer.nabla_b = std::move(nabla_b_template);
 
-	size_t n_test = test_data.size();	   // Number of testing pairs
-	size_t n_train = training_data.size(); // Number of training pairs
+        for (int j = 0; j < config.epochs; j++)
+        {
+            train_test_timer.reset();
+            auto mini_batches = batch_prep();
 
-	std::mt19937 rng{std::random_device{}()};
-	ThreadPool pool;
-	pool.Start();
-	Timer timer;
-	float elap{0.0F};
-	
-	for (int j = 0; j < epochs; j++)
-	{
-		timer.reset();
-		// Shuffling ensures that a lot of similar data isn't batched together (due to sorted datasets), 
-		// 		which can lead to slower descent and overfitting.
-		// It also ensures that the model sees a diverse set of examples in each epoch.
-		std::shuffle(training_data.begin(), training_data.end(), rng);
+            for (auto& mini_batch : mini_batches)
+            {
+                int end = static_cast<int>(mini_batch.size() - 1);
+                update_mini_batch(mini_batch, 0, end, single_buffer);
 
-		std::vector<TrainingData> mini_batches;
-		mini_batches.reserve((n_train + min_batch_size) / min_batch_size);
-		// mini_batches.clear();  // Capacity is not affected.
+                float scale = config.eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
+                for (size_t i = 0; i < num_param_layers; i++)
+                {
+                    weights[i] -= single_buffer.nabla_w[i] * scale;
+                    biases[i] -= single_buffer.nabla_b[i] * scale;
+                }
+            }
+            time_train = train_test_timer.elapsed();
+            float avg = master.elapsed() / static_cast<float>(j + 1);
+            if (!test_data.empty())
+            {
+                train_test_timer.reset();
+                int evaluation_result = evaluate(test_data);
+                time_test = train_test_timer.elapsed();
+                accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
+                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, avg) << "\n";
+            }
+            else
+              std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
+        }
+        observe.update(time_train, time_test, accuracy);
+    }
 
-		// Create mini-batches from the shuffled training data.
-		for (size_t k = 0; k < n_train; k += min_batch_size)
-		{
-			auto current_size = std::min(min_batch_size, static_cast<int>(n_train - k));
-			mini_batches.emplace_back(
-				std::vector<TrainingSample>(training_data.begin() + k,
-											training_data.begin() + k + current_size)
-			);
-		}
+    // Multi-threaded Training + Testing
+    else
+    {
+        int n_threads;
+        config.thread_count == 0
+            ? n_threads = std::thread::hardware_concurrency()
+            : n_threads = std::min<int>(std::thread::hardware_concurrency(), config.thread_count);
 
-		std::vector<std::function<void()>> tasks;
-		tasks.reserve(n_threads);
+        std::vector<Buffers> buffer_list;
+        for (int i = 0; i < n_threads; i++) buffer_list.emplace_back(num_layers);
 
-		for (auto& mini_batch : mini_batches) 
-		{
-			auto ranges = create_ranges(mini_batch, n_threads);
-			tasks.clear();
+        for (auto& buffer : buffer_list)
+        {
+            buffer.activations = activations_template;
+            buffer.zs = zs_template;
+            buffer.nabla_w = nabla_w_template;
+            buffer.nabla_b = nabla_b_template;
+        }
 
-			for (size_t t = 0; t < ranges.size(); t++) 
-			{
-				auto& [start, end] = ranges[t];
-				tasks.push_back([this, t, start, end, &mini_batch, &buffer_list, eta] {
-					update_mini_batch(mini_batch, start, end, buffer_list[t], eta);
-				});
-			}
-			pool.QueueBatch(tasks);
-			pool.Wait(); 
+        ThreadPool pool;
+        pool.Start();
 
-			// The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
-			float scale = eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
-			for (size_t t = 0; t < ranges.size(); t++) 
-			{
-				for (size_t i = 0; i < num_param_layers; i++)
-				{
-					weights[i] -= buffer_list[t].nabla_w[i] * scale;
-					biases[i] -= buffer_list[t].nabla_b[i] * scale;
-				}
-			}
-		}
-		elap += timer.elapsed();
-		float avg = elap / static_cast<float>(j + 1);
-		if (!test_data.empty())
-			std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluate(test_data), n_test, avg) << "\n";
-		else
-			std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
-	}
-	std::cout << "Total Training (+ Testing) Time = " << master.elapsed() << std::endl;
-	pool.Stop();
+        for (int j = 0; j < config.epochs; j++)
+        {
+            train_test_timer.reset();
+
+            auto mini_batches = batch_prep();
+            std::vector<std::function<void()>> tasks;
+            tasks.reserve(n_threads);
+
+            for (auto& mini_batch : mini_batches)
+            {
+                auto ranges = create_ranges(mini_batch, n_threads);
+                tasks.clear();
+
+                for (size_t t = 0; t < ranges.size(); t++)
+                {
+                    auto& [start, end] = ranges[t];
+                    tasks.push_back([&, t] {
+                        update_mini_batch(mini_batch, start, end, buffer_list[t]);
+                    });
+                }
+                pool.QueueBatch(tasks);
+                pool.Wait();
+
+                // The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
+                float scale = config.eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
+                for (size_t t = 0; t < ranges.size(); t++)
+                {
+                    for (size_t i = 0; i < num_param_layers; i++)
+                    {
+                        weights[i] -= buffer_list[t].nabla_w[i] * scale;
+                        biases[i] -= buffer_list[t].nabla_b[i] * scale;
+                    }
+                }
+            }
+
+            float avg = master.elapsed() / static_cast<float>(j + 1);
+            if (!test_data.empty())
+            {
+                train_test_timer.reset();
+                int evaluation_result = evaluate(test_data);
+                time_test = train_test_timer.elapsed();
+                accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
+                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, avg) << "\n";
+            }
+            else
+                std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
+
+            observe.update(time_train, time_test, accuracy);
+        }
+        pool.Stop();
+    }
+    observe.process();
+	observe.print_results();
 }
 
-void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, int start, int end, Buffers& buffers, float eta)
+void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, int start, int end, Buffers& buffers)
 {
 	size_t m = (end - start) + 1;
 	size_t input_size = sizes.front();
@@ -214,23 +273,22 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, i
 	Matrix<float> X(input_size, m);
 	Matrix<float> Y(output_size, m);
 
-	// Stacking all mini-batch input and output matrices into X and Y respectively. 
+	// Stacking all mini-batch input and output matrices into X and Y respectively.
 	// Each column of X corresponds to an input sample, and each column of Y corresponds to the corresponding output sample.
 	// This allows for much faster matrix operations during backpropagation, as we can process the entire mini-batch in one go.
 	for (size_t s = start; s <= end; s++)
 	{
 		const auto &[x, y] = mini_batch[s];
-		size_t col = s - start; // TODO: Why?
+		size_t col = s - start;
 		for (size_t r = 0; r < input_size; r++)
 			X(r, col) = x[r];
 		for (size_t r = 0; r < output_size; r++)
 			Y(r, col) = y[r];
 	}
 
-	buffers.activations[0] = X;
-
-	for (auto& nabla_w : buffers.nabla_w) nabla_w.fill_zeros();
-	for (auto& nabla_b : buffers.nabla_b) nabla_b.fill_zeros();
+    buffers.activations[0] = X;
+    for (auto& nabla_w : buffers.nabla_w) nabla_w.fill_zeros();
+    for (auto& nabla_b : buffers.nabla_b) nabla_b.fill_zeros();
 
 	// Backprop computes the gradients of the cost function with respect to the weights and biases for the entire mini-batch.
 	// The updates to nabla_w and nabla_b are computed in place,
@@ -243,6 +301,7 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 	Matrix<float> activation(X);
 
 	// Feedforward pass: Compute the activations and weighted inputs (z) for each layer.
+
 	for (size_t i = 0; i < biases.size(); i++)
 	{
 		const Matrix<float> &b = biases[i];			// [neurons x 1]
@@ -268,7 +327,7 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 	Matrix<float> inter(buffers.zs.back());
 	act::sigmoid_prime(buffers.zs.back(), inter);
 	Matrix<float> error = cost_derivative(buffers.activations.back(), actual_result).hadamard(inter);
-							
+
 	buffers.nabla_b.back() = row_sum(error);
 	buffers.nabla_w.back() = error * transpose( buffers.activations[buffers.activations.size() - 2] );
 
@@ -346,7 +405,7 @@ std::string Network::export_model(std::string model_directory, std::string datas
 		model_full_path += std::to_string(size) + "-";
 	}
 	model_full_path.back() = '_';
-	model_full_path += "ep" + std::to_string(epochs) + "_lr" + float_to_string(eta);
+	model_full_path += "ep" + std::to_string(config.epochs) + "_lr" + float_to_string(config.eta);
 	// TODO: Support for Loss in the filename
 
 	if (model_directory.back() != '/') model_directory.append("/");

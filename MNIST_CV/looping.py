@@ -11,15 +11,18 @@ from frame_source import Source
 def loop(func: Callable):
 
     def wrapper(source: Source):
-        
+
+        MODEL_PATH = "data/output/mnist_784-30-10_ep30_lr9p000.bin"
         ht = HandTracker(num_hands=1)
-        net = nnfs.Network("data/output/mnist_784-30-10_ep30_lr9p000.bin")
+
+        cfg = nnfs.Config([784, 30, 10], nnfs.Threading.Single, 1)
+        net = nnfs.Network(MODEL_PATH, cfg)
 
         try:
             while True:
                 frame = source.get_frame()
                 frame = cv.flip(frame, 1)
-                
+
                 frame = func(frame, ht, net)
 
                 if not isinstance(frame, ndarray):
@@ -34,7 +37,7 @@ def loop(func: Callable):
                     break
         finally:
             source.release()
-        
+
     return wrapper
 
 
@@ -44,13 +47,13 @@ def pipe(frame: NDArray, ht: HandTracker, net: nnfs.Network) -> NDArray:
     ht.detect(frame)
     if ht.latest_result:
         frame = ht.draw_landmarks_on_image(frame, ht.latest_result) # type: ignore
-    
+
     boxes: list[tuple[tuple[int, int], tuple[int, int]]] = ht.bounding_boxes()
     box_images = ht.get_box_images(frame, boxes)
     frame = ht.sketch(frame, boxes)
     process_images(box_images)
     arrays = to_flat_arrays(box_images)
-    
+
     for i, array in enumerate(arrays):
         output: list[float] = net.feedforward(array)
         predicted: int = output.index(max(output))

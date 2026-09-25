@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 class Network:
     """Neural network loaded from an exported NNFS_Extreme model binary."""
 
-    def __init__(self, model_path: str) -> None:
+    def __init__(self, model_path: str, config) -> None:
         """Load a trained network from a binary model file.
 
         Args:
