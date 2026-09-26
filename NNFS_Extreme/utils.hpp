@@ -59,9 +59,6 @@ void model_to_file(const Network& net);
 template <typename T>
 int find_idx_over_threshold(std::vector<T> container, T threshold)
 {
-    for (size_t i = 0; i < container.size(); i++)
-    {
-        if (container[i] >= threshold) return i;
-    }
+    for (size_t i = 0; i < container.size(); i++) if (container[i] >= threshold) return i;
     return -1;
 }

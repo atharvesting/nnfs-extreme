@@ -22,8 +22,7 @@ target_link_libraries(nnfs_core PUBLIC Spalten TBB::tbb)
 add_executable(NNFS_Extreme
     "NNFS_Extreme.cpp"
     "utils.hpp"
-    "examples/model_export_n_import.hpp"
-    examples/import_model.hpp
+    "examples.cpp"
 )
 set_property(TARGET NNFS_Extreme PROPERTY CXX_STANDARD 20)
 target_link_libraries(NNFS_Extreme PRIVATE nnfs_core)
