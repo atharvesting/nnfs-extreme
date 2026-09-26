@@ -38,8 +38,8 @@ graph TD
 
 ```
 NNFS_Extreme/
-├── NNFS_Extreme/      
-│   ├── CMakeLists.txt            # Build instructions for NNFS_Extreme       
+├── NNFS_Extreme/
+│   ├── CMakeLists.txt            # Build instructions for NNFS_Extreme
 │   ├── NN.hpp / NN.cpp           # Neural Network Implementation from Scratch
 │   ├── activation_functions.*    # Set of all common activation functions and their derivatives
 │   ├── data_loaders.*            # Functions essential for loading training and testing binaries
@@ -47,14 +47,14 @@ NNFS_Extreme/
 │   ├── python_bindings.cpp       # Python bindings (pybind11) to access NN through Python
 │   ├── NNFS_Extreme.cpp          # Main entry point of the standalone NNFS-Extreme Project
 │   └── examples/                 # Ready-to-use functions for the standalone NNFS-Extreme Project
-├── MNIST_CV/                     
+├── MNIST_CV/
 │   ├── MNIST_CV.py               # Main entry point of the MNIST-CV Project
 │   ├── looping.py                # Video Camera Loop Decorator + Main body function
 │   ├── hand_tracking.py          # HandTracker class for landmarking, bounding boxes and drawing
 │   ├── image.py                  # Image processing functions and pipeline
 │   ├── nnfs_extreme.pyd          # pybind11-generated bindings to run NNFS_Extreme code
 │   └── nnfs_extreme.pyi          # Typing stubs for Network Class.
-├── third_party/                  
+├── third_party/
 │   └── Spalten/                  # Git submodule for the underlying foundational matrix engine
 ├── data/                         # Artifacts and program outputs including model binaries
 ├── assets/                       # Media for README.md
@@ -72,11 +72,11 @@ This is an educational project (MVP completed) aimed at building a neural networ
 and building my way from the bottom up towards a performant NN that can classify MNIST digit pictures. However, this engine can generally work on for any dataset with some light tweaking.
 
 This project is heavily inspired by [Michael Nielsen](https://michaelnielsen.org/)'s [book on Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/) ,
-as I have not only used this book to learn about deep learning, but also translated its implementation to blazing fast C++. As this is the 
-first time I was learning about neural networks, I am perfectly happy with this approach. If you feel curious about my journey of 
+as I have not only used this book to learn about deep learning, but also translated its implementation to blazing fast C++. As this is the
+first time I was learning about neural networks, I am perfectly happy with this approach. If you feel curious about my journey of
 improving training speed and inference, see the notes I kept on performance (I started tracking this too late `sad_emoji`).
 
-After successfully achieving 95% accuracy in digit classification, as an experiment, I swapped the input and outputs of the training data and got the network (with only 1 hidden layer containing 30 neurons!) to output some really nice images ([visualized using Python](scripts/pixelarray_to_image.py)) of digits!
+After successfully achieving 98% accuracy in digit classification, as an experiment, I swapped the input and outputs of the training data and got the network (with only 1 hidden layer containing 30 neurons!) to output some really nice images ([visualized using Python](scripts/pixelarray_to_image.py)) of digits!
 
 <table width="100%">
   <tr>
@@ -132,13 +132,13 @@ graph TD
 
 ### Standard Example
 ```cpp
-int main() 
+int main()
 {
   int epochs = 20, mini_batch_size = 32;
   float learning_rate = 2.0F;
 
 	auto training_data = MNIST_loader::load_training_data("data/mnist_train_images.bin", "data/mnist_train_labels.bin", 50000,  false);	// inverted_data = false
-	
+
 	auto test_data = MNIST_loader::load_test_data("data/mnist_test_images.bin", "data/mnist_test_labels.bin", 10000);
 
 	auto nn = Network(std::vector<int>{ 784, 30, 10 });
@@ -199,7 +199,7 @@ graph TD
 ## ESP32-MNIST
 
 The final phase of this progression takes things towards aggressive optimisation and TinyML. The goal for this phase is to run the entire
-data streaming and inference pipeline -- Live video stream -> Drawing Digits -> Real-time classification -- on the ESP32-S3 Sense Board, 
+data streaming and inference pipeline -- Live video stream -> Drawing Digits -> Real-time classification -- on the ESP32-S3 Sense Board,
 which features 8MB PSRAM and 8MB Flash.
 
 Apart from the obvious challenges, a major obstacle to be dealt with will be running the hand landmarking model (sourced from Google's
@@ -229,9 +229,9 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 ---
 ### AI use disclosure
 
-I would like to be absolutely transparent with the fact that I used AI tools for debugging, helping me understand how Python translates 
-optimally to C++, and constructing build instructions. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I 
-made sure to understand each line of code and comment it throughout to document my understanding. I regularly post blogs and to put this 
+I would like to be absolutely transparent with the fact that I used AI tools for debugging, helping me understand how Python translates
+optimally to C++, and constructing build instructions. I also used it to build the scripts that extracted the zipped MNIST data and prepare it to be used by the NN. However, I
+made sure to understand each line of code and comment it throughout to document my understanding. I regularly post blogs and to put this
 understanding into my own words for everyone.
 
 ---

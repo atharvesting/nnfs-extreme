@@ -10,7 +10,6 @@ namespace act {
 	Matrix<float> activation_func_mat(const Matrix<float>& mat, Func func) {
 		Matrix<float> res(mat.rows, mat.cols);
 		std::transform(
-			std::execution::par_unseq,
 			mat.rix.begin(), mat.rix.end(),
 			res.rix.begin(), func
 		);
@@ -20,7 +19,6 @@ namespace act {
 	template <typename Func>
 	void activation_func_mat(const Matrix<float>& mat, Matrix<float>& dest, Func func) {
 		std::transform(
-			std::execution::par_unseq,
 			mat.rix.begin(), mat.rix.end(),
 			dest.rix.begin(), func
 		);
@@ -29,7 +27,7 @@ namespace act {
 	float sigmoid(float z);
 	Matrix<float> sigmoid(const Matrix<float>& mat);
 	void sigmoid(const Matrix<float>& mat, Matrix<float>& dest);
-	
+
 	float sigmoid_prime(float z);
 	Matrix<float> sigmoid_prime(const Matrix<float>& mat);
 	void sigmoid_prime(const Matrix<float>& mat, Matrix<float>& dest);

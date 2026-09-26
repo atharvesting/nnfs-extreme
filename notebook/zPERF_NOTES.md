@@ -1,8 +1,60 @@
 # Notes on Performance (started 2026-07-25 01:15)
 
+2026-09-26
+---
+- New 98% Milestone using the same 784-128-30-10 topology:
+    ```Output
+    Epoch 0: 9272 / 10000 in 1.228516 seconds/epoch
+    Epoch 5: 9701 / 10000 in 3.196187 seconds/epoch
+    Epoch 10: 9736 / 10000 in 3.4197307 seconds/epoch
+    Epoch 15: 9777 / 10000 in 3.4835584 seconds/epoch
+    Epoch 20: 9779 / 10000 in 3.500495 seconds/epoch
+    Epoch 25: 9800 / 10000 in 3.4994333 seconds/epoch
+    Epoch 29: 9799 / 10000 in 3.5373962 seconds/epoch
+    ```
+- An important bottleneck I was able to identify using the observability extension was the unnaturally high
+testing time. With the standard configuration (which has the topology 784-128-30-10 now), testing time took
+about 70% more time than training. Some light research was enough to classify this as an anomaly.
+- Using `perf`, it was found out that despite being on single-threaded mode, threads were being spawned from
+an unlikely source being `activation_functions.hpp`, which used the `std::execution::par_unseq` policy to apply
+any activation function for an output matrix of any size.
+- Simply switching to `std::execution::seq` shaved training time by 5% and testing time by a cool 24%. For the
+standard config, that is a total time of 109s to 93s (17% reduction). The clear lesson is to use execution policies
+carefully and prove its need before settling. In our case, the matrix sizes involved didn't justify spawning a dozen
+threads that just ended up stuck on wait.
+
+    ```output
+    Epoch 0: 9261 / 10000 in 3.1482703130000003 seconds/epoch
+    Epoch 5: 9736 / 10000 in 3.1054950236666667 seconds/epoch
+    Epoch 10: 9742 / 10000 in 3.1281526302727274 seconds/epoch
+    Epoch 15: 9767 / 10000 in 3.105608385 seconds/epoch
+    Epoch 20: 9791 / 10000 in 3.1034742635238097 seconds/epoch
+    Epoch 25: 9797 / 10000 in 3.096594653923077 seconds/epoch
+    Epoch 29: 9792 / 10000 in 3.0955425474333333 seconds/epoch
+    ====== Benchmark Results ======
+    Configuration
+        Epochs: 30
+        Mini-batch size: 32
+        Learning rate (eta): 9
+        Topology: 784 -> 128 -> 30 -> 10
+        Threading: Single
+        Thread count: 0
+    Results (seconds unless noted)
+        Total time: 92.789
+        Total training time: 34.408
+        Total testing time: 58.381
+        Average training time/epoch: 1.147
+        Average testing time/epoch: 1.946
+        Maximum accuracy: 98.05%
+        Final accuracy: 97.92%
+        Accuracy threshold: 94.00%
+        Epochs to threshold: 3
+        Time to threshold: 9.288 s
+    ```
+
 2026-09-22
 ---
-- Here are the results of the NN with a 728-128-30-10 topology:
+- Here are the results of the NN with a 784-128-30-10 topology:
     ```Output
     Epoch 0: 9207 / 10000 in 3.400761 seconds/epoch
     Epoch 5: 9692 / 10000 in 3.4902685 seconds/epoch

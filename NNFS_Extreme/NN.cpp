@@ -15,7 +15,7 @@
 
 Network::Network(Config config)
 	: config(config), num_layers(config.topology.size()),
-	  sizes(std::move(config.topology)),
+	  sizes(config.topology),
 	  num_param_layers(num_layers - 1), observe(config)
 {
 	assert(sizes.size() > 1);
@@ -158,6 +158,7 @@ void Network::SGD()
         for (int j = 0; j < config.epochs; j++)
         {
             train_test_timer.reset();
+            time_test = 0.0F;
             auto mini_batches = batch_prep();
 
             for (auto& mini_batch : mini_batches)
@@ -173,19 +174,18 @@ void Network::SGD()
                 }
             }
             time_train = train_test_timer.elapsed();
-            float avg = master.elapsed() / static_cast<float>(j + 1);
             if (!test_data.empty())
             {
                 train_test_timer.reset();
                 int evaluation_result = evaluate(test_data);
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
-                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, avg) << "\n";
+                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
             }
             else
-              std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
+              std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
+            observe.update(time_train, time_test, accuracy);
         }
-        observe.update(time_train, time_test, accuracy);
     }
 
     // Multi-threaded Training + Testing
@@ -213,6 +213,7 @@ void Network::SGD()
         for (int j = 0; j < config.epochs; j++)
         {
             train_test_timer.reset();
+            time_test = 0.0F;
 
             auto mini_batches = batch_prep();
             std::vector<std::function<void()>> tasks;
@@ -245,17 +246,17 @@ void Network::SGD()
                 }
             }
 
-            float avg = master.elapsed() / static_cast<float>(j + 1);
+            time_train = train_test_timer.elapsed();
             if (!test_data.empty())
             {
                 train_test_timer.reset();
                 int evaluation_result = evaluate(test_data);
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
-                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, avg) << "\n";
+                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
             }
             else
-                std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, avg) << "\n";
+                std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
 
             observe.update(time_train, time_test, accuracy);
         }

@@ -76,13 +76,19 @@ void Observability::process()
         return;
     }
 
-    avg_training_time = total_training_time / epochs;
-    avg_testing_time = total_testing_time / epochs;
+    const size_t completed_epochs = training_time_progression.size();
+    avg_training_time = total_training_time / completed_epochs;
+    avg_testing_time = total_testing_time / completed_epochs;
     max_accuracy = *std::max_element(accuracy_progression.begin(), accuracy_progression.end());
     final_accuracy = accuracy_progression.back();
     const int threshold_idx = find_idx_over_threshold(accuracy_progression, acc_threshold);
     epochs_to_accuracy_threshold = threshold_idx < 0 ? 0 : threshold_idx + 1;
-    time_to_accuracy_threshold = epochs_to_accuracy_threshold * (avg_training_time + avg_testing_time);
+    time_to_accuracy_threshold = std::accumulate(training_time_progression.begin(),
+                                                  training_time_progression.begin() + epochs_to_accuracy_threshold,
+                                                  0.0F) +
+                                 std::accumulate(testing_time_progression.begin(),
+                                                 testing_time_progression.begin() + epochs_to_accuracy_threshold,
+                                                 0.0F);
 }
 
 void Observability::print_results()
