@@ -1,25 +1,44 @@
 #include "benchmark_harness.hpp"
+#include "NN.hpp"
 #include "utils.hpp"
 #include <algorithm> // max
+#include <cstdlib>
+#include <fstream>
 #include <numeric>   // accumulate
 #include <iostream>
 #include <iomanip>
 
 Config::Config(int epochs, int mini_batch_size, float eta,
                std::vector<int> topology, Threading thread_state,
+               int random_seed, bool xavier_init,
                int thread_count, std::string train_images,
                std::string test_images, std::string train_labels,
-               std::string test_labels, float acc_threshold)
-
+               std::string test_labels, float acc_threshold
+               )
     : epochs(epochs), mini_batch_size(mini_batch_size), eta(eta),
       topology(topology), thread_state(thread_state),
       thread_count(thread_count), train_images(train_images),
       test_images(test_images), train_labels(train_labels),
-      test_labels(test_labels), acc_threshold(acc_threshold) {}
+      test_labels(test_labels), acc_threshold(acc_threshold),
+      random_seed(random_seed), xavier_init(xavier_init) {}
+
+json Config::to_json_object() {
+    return json{
+        {"epochs", epochs},
+        {"mini_batch_size", mini_batch_size},
+        {"eta", eta},
+        {"topology", topology},
+        {"thread_state", thread_state},
+        {"thread_count", thread_count},
+        {"random_seed", random_seed},
+        {"xavier_init", xavier_init},
+        {"acc_threshold", acc_threshold}
+    };
+}
 
 BenchConfig::BenchConfig(
     size_t                           epochs,
-    std::vector<size_t>     mini_batch_size,
+    std::vector<int>        mini_batch_size,
     std::vector<float>                  eta,
     std::vector<std::vector<int>>  topology,
     std::vector<Threading>     thread_state,
@@ -29,16 +48,24 @@ BenchConfig::BenchConfig(
 ) :
     epochs(epochs), mini_batch_size(mini_batch_size), eta(eta), topology(topology),
     thread_state(thread_state), random_seed(random_seed), xavier_init(xavier_init),
-    thread_count(thread_count) {}
+    thread_count(thread_count)
+    {
+        param_options_count = {
+            mini_batch_size.size(),
+            eta.size(),
+            topology.size(),
+            thread_state.size(),
+            random_seed.size(),
+            xavier_init.size()
+        };
+    }
 
 Observability::Observability(Config config)
 {
     o_config = config;
-    epochs = config.epochs;
-    training_time_progression.reserve(epochs);
-    testing_time_progression.reserve(epochs);
-    accuracy_progression.reserve(epochs);
-    acc_threshold = config.acc_threshold;
+    training_time_progression.reserve(o_config.epochs);
+    testing_time_progression.reserve(o_config.epochs);
+    accuracy_progression.reserve(o_config.epochs);
     epochs_to_accuracy_threshold = 0;
     time_to_accuracy_threshold = 0.0F;
 
@@ -68,7 +95,7 @@ void Observability::process()
                         testing_time_progression.end(), 0.0F);
     total_time = total_training_time + total_testing_time;
 
-    if (epochs == 0 || accuracy_progression.empty())
+    if (o_config.epochs == 0 || accuracy_progression.empty())
     {
         avg_training_time = avg_testing_time = max_accuracy = final_accuracy = 0.0F;
         epochs_to_accuracy_threshold = 0;
@@ -81,7 +108,7 @@ void Observability::process()
     avg_testing_time = total_testing_time / completed_epochs;
     max_accuracy = *std::max_element(accuracy_progression.begin(), accuracy_progression.end());
     final_accuracy = accuracy_progression.back();
-    const int threshold_idx = find_idx_over_threshold(accuracy_progression, acc_threshold);
+    const int threshold_idx = find_idx_over_threshold(accuracy_progression, o_config.acc_threshold);
     epochs_to_accuracy_threshold = threshold_idx < 0 ? 0 : threshold_idx + 1;
     time_to_accuracy_threshold = std::accumulate(training_time_progression.begin(),
                                                   training_time_progression.begin() + epochs_to_accuracy_threshold,
@@ -115,7 +142,7 @@ void Observability::print_results()
               << std::setprecision(2)
               << "  Maximum accuracy: " << max_accuracy << "%\n"
               << "  Final accuracy: " << final_accuracy << "%\n"
-              << "  Accuracy threshold: " << acc_threshold << "%\n";
+              << "  Accuracy threshold: " << o_config.acc_threshold << "%\n";
 
     if (epochs_to_accuracy_threshold == 0)
         std::cout << "  Epochs to threshold: not reached\n";
@@ -124,4 +151,52 @@ void Observability::print_results()
                   << std::setprecision(3)
                   << "  Time to threshold: " << time_to_accuracy_threshold << " s\n";
     std::cout << std::defaultfloat;
+}
+
+json Observability::to_json_object()
+{
+    return json{
+        {"config", o_config.to_json_object()},
+        {"run results",
+            {
+                {"training_time_progression", training_time_progression},
+                {"testing_time_progression", testing_time_progression},
+                {"accuracy_progression", accuracy_progression},
+                {"epochs_to_accuracy_threshold", epochs_to_accuracy_threshold},
+                {"time_to_accuracy_threshold", time_to_accuracy_threshold},
+                {"total_time", total_time},
+                {"total_training_time", total_training_time},
+                {"total_testing_time", total_testing_time},
+                {"avg_training_time", avg_training_time},
+                {"avg_testing_time", avg_testing_time},
+                {"max_accuracy", max_accuracy},
+                {"final_accuracy", final_accuracy}
+            }
+        }
+    };
+}
+
+Benchmark::Benchmark(BenchConfig b_config_)
+    : b_config(b_config_), odo(b_config.param_options_count) {}
+
+void Benchmark::run() {
+    do {
+        auto state = odo.get_state();
+        config = {
+            30,
+            b_config.mini_batch_size[state[0]],
+            b_config.eta[state[1]],
+            b_config.topology[state[2]],
+            b_config.thread_state[state[3]],
+            b_config.random_seed[state[4]],
+            b_config.xavier_init[state[5]],
+        };
+        Network net(config);
+        net.SGD();
+        result.push_back(net.observe.to_json_object());
+
+    } while (odo.next());
+
+    std::ofstream file("results.json");
+    file << result.dump(4);
 }

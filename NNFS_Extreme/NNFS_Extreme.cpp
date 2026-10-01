@@ -1,13 +1,25 @@
-#include "NN.hpp"
-#include "examples.hpp"
-// #include "utils.hpp"
+// #include "examples.hpp"
+#include <iostream>
+#include "benchmark_harness.hpp"
+
+BenchConfig b_config(
+    30,
+    {32},
+    {1.0F},
+    {{784, 30, 10}},
+    {Threading::Single, Threading::Multi},
+    {21},
+    {true},
+    16
+);
 
 int main()
 {
-	standard_mnist();
-	// inverted_mnist();
-	// import_model();
-	// model_export_n_import();
+    Benchmark bench(b_config);
+    std::cout << "Benchmark Harness initialized!\n";
+
+    bench.run();
+    std::cout << "Benchmark run complete!" << std::endl;
 
 	return 0;
 }

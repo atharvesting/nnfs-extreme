@@ -225,6 +225,7 @@ I plan to write about this project in my blog which you can find on [Medium](htt
 - [Size of numeric datatypes in C](https://stackoverflow.com/questions/589575/what-does-the-c-standard-say-about-the-size-of-int-long)
 - [ESP32 CAM Setup Guide](https://randomnerdtutorials.com/esp32-cam-ov2640-camera-settings)
 - [OpenCV VideoCapture Set Enum Info](https://docs.opencv.org/3.4.20/dc/d3d/videoio_8hpp.html)
+- [Pointer to members in C++](https://www.ibm.com/docs/en/i/7.4.0?topic=only-pointers-members-c)
 
 ---
 ### AI use disclosure

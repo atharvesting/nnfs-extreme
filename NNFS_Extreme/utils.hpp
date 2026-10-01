@@ -3,7 +3,6 @@
 #include <thread>
 #include <functional>
 #include <condition_variable>
-#include "NN.hpp"
 
 // Implementation Source: https://stackoverflow.com/a/32593825
 class ThreadPool {
@@ -54,6 +53,7 @@ std::vector<std::pair<int, int>> create_ranges(std::vector<T>& container, int th
     return ranges;
 }
 
+class Network;
 void model_to_file(const Network& net);
 
 template <typename T>
@@ -62,3 +62,14 @@ int find_idx_over_threshold(std::vector<T> container, T threshold)
     for (size_t i = 0; i < container.size(); i++) if (container[i] >= threshold) return i;
     return -1;
 }
+
+class Odometer {
+private:
+    std::vector<size_t> sizes;
+    std::vector<int> state;
+
+public:
+    Odometer(std::vector<size_t> sizes);
+    bool next();
+    std::vector<int> get_state() const;
+};

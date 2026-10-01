@@ -16,7 +16,7 @@ set_property(TARGET nnfs_core PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET nnfs_core PROPERTY CXX_STANDARD 20)
 set_property(TARGET nnfs_core PROPERTY CXX_SCAN_FOR_MODULES OFF)
 target_include_directories(nnfs_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(nnfs_core PUBLIC Spalten TBB::tbb)
+target_link_libraries(nnfs_core PUBLIC Spalten TBB::tbb nlohmann_json::nlohmann_json)
 
 # ── Executable target ────────────────────────────────────────────────────────
 add_executable(NNFS_Extreme

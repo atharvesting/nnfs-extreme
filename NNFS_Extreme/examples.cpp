@@ -8,7 +8,7 @@
 #include "NN.hpp"
 #include "data_loaders.hpp"
 
-void standard_mnist()
+void examples::standard_mnist()
 {
     Config config(30, 32, 9.0F, {784, 30, 10});
     const std::string thread_state = config.thread_state == Threading::Single ? "Single" : "Multi";
@@ -22,7 +22,7 @@ void standard_mnist()
     Network(config).SGD();
 }
 
-void inverted_mnist()
+void examples::inverted_mnist()
 {
     Config config(20, 64, 15.0F, {10, 30, 784});
     std::cout << "Running inverted MNIST example!\n"
@@ -45,7 +45,7 @@ void inverted_mnist()
     pixel_data.write(reinterpret_cast<const char*>(output.rix.data()), output.rows * output.cols * sizeof(float));
 }
 
-void model_export_n_import()
+void examples::model_export_n_import()
 {
     Config config(30, 32, 9.0F, {10, 30, 784});
     Network nn(config);
@@ -64,7 +64,7 @@ void model_export_n_import()
     pixel_data.write(reinterpret_cast<const char*>(output.rix.data()), output.rows * output.cols * sizeof(float));
 }
 
-void import_model()
+void examples::import_model()
 {
     Config config(20, 64, 15.0F, {10, 30, 784});
     Network nn("data/output/mnist_inverted_10-30-784_ep20_lr15p000.bin", config);

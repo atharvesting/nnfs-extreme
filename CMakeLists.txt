@@ -13,6 +13,13 @@ project ("NNFS_Extreme")
 
 include(FetchContent)
 FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.12.0
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
     GIT_TAG        v2.13.6
@@ -27,12 +34,12 @@ if(MSVC)
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " /O2 /Oi /Ot /Oy /GL /arch:AVX2 /fp:fast")
     string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " /O2 /Oi /Ot /Oy /GL /arch:AVX2 /fp:fast")
     string(APPEND CMAKE_CXX_FLAGS_DEBUG " /Od")
-    
+
     # Enable Link-Time Code Generation globally for optimized configurations
     string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " /LTCG")
     string(APPEND CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO " /LTCG")
-    
-    # Optional diagnostic tool: Uncomment the line below to see exactly which 
+
+    # Optional diagnostic tool: Uncomment the line below to see exactly which
     # loops Visual Studio successfully vectorizes in the build output.
     # string(APPEND CMAKE_CXX_FLAGS " /Qvec-report:2")
 else()

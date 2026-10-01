@@ -32,7 +32,9 @@ Network::Network(Config config)
 		int y{sizes[i + 1]};
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		float stddev = std::sqrt(2.0F / (sizes.front() + sizes.back()));  // where x = fan-in
+		float stddev = config.xavier_init
+                       ? std::sqrt(2.0F / (sizes.front() + sizes.back()))  // where x = fan-in
+                       : 1;
 		weights.emplace_back(mat_random_normal(y, x, 0, stddev));
 	}
 	for (size_t i = 1; i < num_layers; i++)
@@ -96,7 +98,7 @@ void Network::SGD()
     size_t n_test = test_data.size();	   // Number of testing pairs
     size_t n_train = training_data.size(); // Number of training pairs
     float accuracy=0.0F;
-    std::mt19937 rng{std::random_device{}()};
+    std::mt19937 rng(config.random_seed);
 
     auto batch_prep = [&, this]() {
       // Shuffling ensures that a lot of similar data isn't batched together
@@ -112,9 +114,11 @@ void Network::SGD()
       for (size_t k = 0; k < n_train; k += config.mini_batch_size) {
         auto current_size =
             std::min(config.mini_batch_size, static_cast<int>(n_train - k));
+
         mini_batches.emplace_back(std::vector<TrainingSample>(
             training_data.begin() + k,
-            training_data.begin() + k + current_size));
+            training_data.begin() + k + current_size)
+        );
       }
       return mini_batches;
     };
@@ -263,7 +267,6 @@ void Network::SGD()
         pool.Stop();
     }
     observe.process();
-	observe.print_results();
 }
 
 void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, int start, int end, Buffers& buffers)

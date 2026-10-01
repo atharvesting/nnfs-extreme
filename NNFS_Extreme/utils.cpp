@@ -141,3 +141,25 @@ void model_to_file(const Network& net) {
 
     file.close();
 }
+
+Odometer::Odometer(std::vector<size_t> sizes_)
+    : sizes(sizes_), state(sizes.size(), 0) {}
+
+bool Odometer::next()
+{
+    for (size_t i = sizes.size(); i-- > 0; )
+    {
+        if (state[i] < (sizes[i] - 1))
+        {
+            state[i]++;
+            return true;
+        }
+        state[i] = 0;
+    }
+    return false;
+}
+
+std::vector<int> Odometer::get_state() const
+{
+    return state;
+}
