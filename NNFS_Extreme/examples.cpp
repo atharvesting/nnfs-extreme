@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,8 +32,9 @@ void examples::inverted_mnist()
               << ", Learning rate: " << config.eta << '\n';
 
     Network nn(config);
-    nn.training_data = MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, true);
-    nn.test_data.clear();
+    nn.training_data = std::make_shared<const TrainingData>(
+        MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, true));
+    nn.test_data = std::make_shared<const TestData>();
     nn.SGD();
 
     nn.export_model("data/output/", "mnist_inverted");
@@ -49,8 +51,9 @@ void examples::model_export_n_import()
 {
     Config config(30, 32, 9.0F, {10, 30, 784});
     Network nn(config);
-    nn.training_data = MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, true);
-    nn.test_data.clear();
+    nn.training_data = std::make_shared<const TrainingData>(
+        MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, true));
+    nn.test_data = std::make_shared<const TestData>();
     nn.SGD();
 
     const auto model_path = nn.export_model("data/output/", "mnist_inverted");

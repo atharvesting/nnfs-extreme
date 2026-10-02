@@ -1,5 +1,6 @@
 #pragma once
 #include "benchmark_harness.hpp"
+#include <memory>
 #include <vector>
 #include <string>
 #include <Spalten/Matrix.hpp>
@@ -34,14 +35,16 @@ public:
 	std::vector<int> sizes;
 	std::vector<Matrix<float>> biases;
 	std::vector<Matrix<float>> weights;
-    TrainingData training_data;
-    TestData test_data;
+    std::shared_ptr<const TrainingData> training_data;
+    std::shared_ptr<const TestData> test_data;
     Config config;
     Observability observe;
 
 	/// @brief Constructs a neural network with the specified layer sizes.
 	/// @param nw_sizes A vector containing the number of neurons in each layer (including input and output layers).
 	explicit Network(Config config);
+	Network(Config config, std::shared_ptr<const TrainingData> training_data,
+	        std::shared_ptr<const TestData> test_data);
 
 	/// @brief Constructs a neural network using the file containing network data.
 	/// @param model_path Path to the network data.
@@ -55,7 +58,7 @@ public:
 	/// @brief Stochastic Gradient Descent (SGD) algorithm for training the neural network.
 
 	/// @return A pair containing the final weights and biases after training.
-	void SGD();
+	void SGD(bool verbosity = true);
 
 	/// @brief Export the model parameters as a custom binary. Imported using the file constructor.
 	/// @param model_path The path+filename as the export location.
@@ -66,7 +69,8 @@ private:
 	/// @brief Updates the network's weights and biases using a mini-batch of training data.
 	/// @param mini_batch A vector of TrainingSample pairs (input matrix, output matrix).
 	/// @param eta Learning rate.
-	void update_mini_batch(const std::vector<TrainingSample>& mini_batch, int start, int end, Buffers& buffers);
+	void update_mini_batch(const TrainingData& data, const std::vector<size_t>& indices,
+	                       int start, int end, Buffers& buffers);
 
 	/// @brief Computes the gradients of the cost function with respect to the weights and biases.
 	/// @param X Input matrix.
@@ -90,4 +94,3 @@ private:
 	static Matrix<float> row_sum(const Matrix<float>& m);
 
 };
-

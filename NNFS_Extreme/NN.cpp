@@ -5,6 +5,7 @@
 #include <algorithm> // max_element, min, max
 #include <fstream> 	 // ifstream, ofstream
 #include <thread>    // thread
+#include <numeric>   // iota
 #include <Spalten/Matrix.hpp>
 #include <Spalten/Utils.hpp>
 #include "NN.hpp"
@@ -14,9 +15,16 @@
 #include "utils.hpp"
 
 Network::Network(Config config)
+	: Network(config,
+	          std::make_shared<const TrainingData>(MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, false)),
+	          std::make_shared<const TestData>(MNIST_loader::load_test_data(config.test_images, config.test_labels, 10000))) {}
+
+Network::Network(Config config, std::shared_ptr<const TrainingData> training_data_,
+	             std::shared_ptr<const TestData> test_data_)
 	: config(config), num_layers(config.topology.size()),
 	  sizes(config.topology),
-	  num_param_layers(num_layers - 1), observe(config)
+	  num_param_layers(num_layers - 1), training_data(std::move(training_data_)),
+	  test_data(std::move(test_data_)), observe(config)
 {
 	assert(sizes.size() > 1);
 
@@ -26,6 +34,7 @@ Network::Network(Config config)
 	weights.reserve(num_param_layers);
 
 	// Matrix Initialization
+	std::mt19937 init_rng(config.random_seed);
 	for (size_t i = 0; i < num_layers - 1; i++)
 	{
 		int x{sizes[i]};
@@ -35,19 +44,16 @@ Network::Network(Config config)
 		float stddev = config.xavier_init
                        ? std::sqrt(2.0F / (sizes.front() + sizes.back()))  // where x = fan-in
                        : 1;
-		weights.emplace_back(mat_random_normal(y, x, 0, stddev));
+		Matrix<float> weight(y, x);
+		std::normal_distribution<float> normal(0.0F, stddev);
+		for (auto& value : weight.rix) value = normal(init_rng);
+		weights.emplace_back(std::move(weight));
 	}
 	for (size_t i = 1; i < num_layers; i++)
 	{
 		int y{sizes[i]};
 		biases.emplace_back(Matrix<float>(y, 1, 0));
 	}
-    training_data = MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, false);
-	std::cout << "Training data loaded.\n";												// inverted_data = false
-
-	test_data = MNIST_loader::load_test_data(config.test_images, config.test_labels, 10000);
-	std::cout << "Test data loaded.\n";
-
 }
 
 Network::Network(const std::string& model_path, Config& config) : config(config), observe(config) {
@@ -91,12 +97,12 @@ Network::Network(const std::string& model_path, Config& config) : config(config)
 	}
 }
 
-void Network::SGD()
+void Network::SGD(bool verbosity)
 {
 	Timer master, train_test_timer;
     float time_train=0.0F, time_test=0.0F;
-    size_t n_test = test_data.size();	   // Number of testing pairs
-    size_t n_train = training_data.size(); // Number of training pairs
+	    size_t n_test = test_data->size();	   // Number of testing pairs
+	    size_t n_train = training_data->size(); // Number of training pairs
     float accuracy=0.0F;
     std::mt19937 rng(config.random_seed);
 
@@ -105,22 +111,10 @@ void Network::SGD()
       // (due to sorted datasets), 		which can lead to slower descent and
       // overfitting. It also ensures that the model sees a diverse set of
       // examples in each epoch.
-      std::shuffle(training_data.begin(), training_data.end(), rng);
-
-      std::vector<TrainingData> mini_batches;
-      mini_batches.reserve((n_train + config.mini_batch_size) / config.mini_batch_size);
-
-      // Create mini-batches from the shuffled training data.
-      for (size_t k = 0; k < n_train; k += config.mini_batch_size) {
-        auto current_size =
-            std::min(config.mini_batch_size, static_cast<int>(n_train - k));
-
-        mini_batches.emplace_back(std::vector<TrainingSample>(
-            training_data.begin() + k,
-            training_data.begin() + k + current_size)
-        );
-      }
-      return mini_batches;
+	      std::vector<size_t> indices(n_train);
+	      std::iota(indices.begin(), indices.end(), 0);
+	      std::shuffle(indices.begin(), indices.end(), rng);
+	      return indices;
     };
 
     std::vector<Matrix<float>> nabla_w_template;
@@ -163,14 +157,14 @@ void Network::SGD()
         {
             train_test_timer.reset();
             time_test = 0.0F;
-            auto mini_batches = batch_prep();
+			auto indices = batch_prep();
 
-            for (auto& mini_batch : mini_batches)
-            {
-                int end = static_cast<int>(mini_batch.size() - 1);
-                update_mini_batch(mini_batch, 0, end, single_buffer);
+			for (size_t start = 0; start < n_train; start += config.mini_batch_size)
+			{
+				int end = static_cast<int>(std::min(n_train, start + static_cast<size_t>(config.mini_batch_size)) - 1);
+				update_mini_batch(*training_data, indices, static_cast<int>(start), end, single_buffer);
 
-                float scale = config.eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
+				float scale = config.eta / static_cast<float>(end - static_cast<int>(start) + 1);
                 for (size_t i = 0; i < num_param_layers; i++)
                 {
                     weights[i] -= single_buffer.nabla_w[i] * scale;
@@ -178,16 +172,22 @@ void Network::SGD()
                 }
             }
             time_train = train_test_timer.elapsed();
-            if (!test_data.empty())
+            int evaluation_result{0};
+
+			if (!test_data->empty())
             {
                 train_test_timer.reset();
-                int evaluation_result = evaluate(test_data);
+				evaluation_result = evaluate(*test_data);
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
-                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
             }
-            else
-              std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
+            if (verbosity) 
+            {
+				if (test_data->empty())
+                    std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
+                else
+                    std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
+            }
             observe.update(time_train, time_test, accuracy);
         }
     }
@@ -219,27 +219,29 @@ void Network::SGD()
             train_test_timer.reset();
             time_test = 0.0F;
 
-            auto mini_batches = batch_prep();
-            std::vector<std::function<void()>> tasks;
-            tasks.reserve(n_threads);
+			auto indices = batch_prep();
+			std::vector<std::function<void()>> tasks;
+			tasks.reserve(n_threads);
 
-            for (auto& mini_batch : mini_batches)
-            {
-                auto ranges = create_ranges(mini_batch, n_threads);
+			for (size_t batch_start = 0; batch_start < n_train; batch_start += config.mini_batch_size)
+			{
+				const size_t batch_size = std::min(n_train - batch_start, static_cast<size_t>(config.mini_batch_size));
+				std::vector<size_t> batch_indices(indices.begin() + batch_start, indices.begin() + batch_start + batch_size);
+				auto ranges = create_ranges(batch_indices, n_threads);
                 tasks.clear();
 
                 for (size_t t = 0; t < ranges.size(); t++)
                 {
-                    auto& [start, end] = ranges[t];
-                    tasks.push_back([&, t] {
-                        update_mini_batch(mini_batch, start, end, buffer_list[t]);
-                    });
+					auto& [start, end] = ranges[t];
+					tasks.push_back([&, t] {
+						update_mini_batch(*training_data, batch_indices, start, end, buffer_list[t]);
+					});
                 }
                 pool.QueueBatch(tasks);
                 pool.Wait();
 
                 // The scaled gradients are subtracted from the current weights and biases to update them in the direction that minimizes the cost function.
-                float scale = config.eta / static_cast<float>(mini_batch.size()); // EVALUATE THIS!
+				float scale = config.eta / static_cast<float>(batch_size); // EVALUATE THIS!
                 for (size_t t = 0; t < ranges.size(); t++)
                 {
                     for (size_t i = 0; i < num_param_layers; i++)
@@ -251,10 +253,10 @@ void Network::SGD()
             }
 
             time_train = train_test_timer.elapsed();
-            if (!test_data.empty())
+			if (!test_data->empty())
             {
                 train_test_timer.reset();
-                int evaluation_result = evaluate(test_data);
+				int evaluation_result = evaluate(*test_data);
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
                 std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
@@ -269,7 +271,8 @@ void Network::SGD()
     observe.process();
 }
 
-void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, int start, int end, Buffers& buffers)
+void Network::update_mini_batch(const TrainingData& data, const std::vector<size_t>& indices,
+                                int start, int end, Buffers& buffers)
 {
 	size_t m = (end - start) + 1;
 	size_t input_size = sizes.front();
@@ -282,7 +285,7 @@ void Network::update_mini_batch(const std::vector<TrainingSample> &mini_batch, i
 	// This allows for much faster matrix operations during backpropagation, as we can process the entire mini-batch in one go.
 	for (size_t s = start; s <= end; s++)
 	{
-		const auto &[x, y] = mini_batch[s];
+		const auto &[x, y] = data[indices[s]];
 		size_t col = s - start;
 		for (size_t r = 0; r < input_size; r++)
 			X(r, col) = x[r];

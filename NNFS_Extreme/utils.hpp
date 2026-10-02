@@ -3,6 +3,7 @@
 #include <thread>
 #include <functional>
 #include <condition_variable>
+#include <iostream>
 
 // Implementation Source: https://stackoverflow.com/a/32593825
 class ThreadPool {
@@ -73,3 +74,16 @@ public:
     bool next();
     std::vector<int> get_state() const;
 };
+
+template <typename T>
+void print_container(std::vector<T> container)
+{
+    auto size = container.size();
+    std::cout << "{";
+    for (size_t i = 0; i < size - 1; i++)
+    {
+        std::cout << container[i];
+        std::cout << ", ";
+    }
+    std::cout << container[size - 1] << "}\n";
+}

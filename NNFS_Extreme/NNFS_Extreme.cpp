@@ -2,7 +2,7 @@
 #include <iostream>
 #include "benchmark_harness.hpp"
 
-BenchConfig b_config(
+BenchConfig bc(
     30,
     {32},
     {1.0F},
@@ -15,6 +15,7 @@ BenchConfig b_config(
 
 int main()
 {
+    BenchConfig b_config;
     Benchmark bench(b_config);
     std::cout << "Benchmark Harness initialized!\n";
 

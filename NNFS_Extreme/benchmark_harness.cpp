@@ -1,5 +1,6 @@
 #include "benchmark_harness.hpp"
 #include "NN.hpp"
+#include "data_loaders.hpp"
 #include "utils.hpp"
 #include <algorithm> // max
 #include <cstdlib>
@@ -180,7 +181,16 @@ Benchmark::Benchmark(BenchConfig b_config_)
     : b_config(b_config_), odo(b_config.param_options_count) {}
 
 void Benchmark::run() {
+    Timer timer;
+    auto training_data = std::make_shared<const TrainingData>(
+        MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, false));
+    auto test_data = std::make_shared<const TestData>(
+        MNIST_loader::load_test_data(config.test_images, config.test_labels, 10000));
+    std::ofstream file("results.jsonl");
+    if (!file) throw std::runtime_error("Could not open results.jsonl for writing.");
+    int i = 0;
     do {
+        i++;
         auto state = odo.get_state();
         config = {
             30,
@@ -190,13 +200,17 @@ void Benchmark::run() {
             b_config.thread_state[state[3]],
             b_config.random_seed[state[4]],
             b_config.xavier_init[state[5]],
+            // rest are already initialized and don't need changes
         };
-        Network net(config);
-        net.SGD();
-        result.push_back(net.observe.to_json_object());
+        std::cout << "Config no = " << i << ", Time = " << timer.elapsed() << "\n";
+        print_container(state);
+
+        Network net(config, training_data, test_data);
+        net.SGD(false);
+
+        auto record = net.observe.to_json_object();
+        record["config_no"] = i;
+        file << record.dump() << '\n' << std::flush;
 
     } while (odo.next());
-
-    std::ofstream file("results.json");
-    file << result.dump(4);
 }
