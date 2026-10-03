@@ -7,10 +7,9 @@
 #include "utils.hpp"
 
 
-void ThreadPool::Start() {
-    const int num_threads = std::thread::hardware_concurrency();
-    threads.reserve(num_threads);
-    for (int i  = 0; i < num_threads; i++) {
+void ThreadPool::Start(size_t worker_count) {
+    threads.reserve(worker_count);
+    for (size_t i = 0; i < worker_count; i++) {
         threads.emplace_back(&ThreadPool::ThreadLoop, this);
     }
 }

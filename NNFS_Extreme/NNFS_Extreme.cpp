@@ -1,6 +1,7 @@
 // #include "examples.hpp"
 #include <iostream>
 #include "benchmark_harness.hpp"
+#include "examples.hpp"
 
 BenchConfig bc(
     30,
@@ -9,18 +10,20 @@ BenchConfig bc(
     {{784, 30, 10}},
     {Threading::Single, Threading::Multi},
     {21},
-    {true},
+    {init::Type::XavierNormal},
+    {act::Type::Sigmoid},
     16
 );
 
 int main()
 {
-    BenchConfig b_config;
-    Benchmark bench(b_config);
-    std::cout << "Benchmark Harness initialized!\n";
+    // BenchConfig b_config; // Default Initialization to full suite
+    // Benchmark bench(b_config);
+    // std::cout << "Benchmark Harness initialized!\n";
 
-    bench.run();
-    std::cout << "Benchmark run complete!" << std::endl;
+    // bench.run();
+    // std::cout << "Benchmark run complete!" << std::endl;
+    examples::standard_mnist();
 
 	return 0;
 }

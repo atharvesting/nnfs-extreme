@@ -12,10 +12,24 @@ PYBIND11_MODULE(nnfs_extreme, m) {
         .value("Single", Threading::Single)
         .value("Multi", Threading::Multi);
 
+    py::enum_<init::Type>(m, "Initializer")
+        .value("XavierNormal", init::Type::XavierNormal)
+        .value("LeCunNormal", init::Type::LeCunNormal);
+
+    py::enum_<act::Type>(m, "Activation")
+        .value("Sigmoid", act::Type::Sigmoid)
+        .value("Relu", act::Type::Relu)
+        .value("Tanh", act::Type::Tanh)
+        .value("LeakyRelu", act::Type::LeakyRelu);
+
     py::class_<Config>(m, "Config")
-        .def(py::init([](std::vector<int> topology, Threading threading, int threads) {
-            return Config(30, 128, 30.0F, std::move(topology), threading, threads);
-        }), py::arg("topology"), py::arg("thread_state"), py::arg("thread_count"));
+        .def(py::init([](std::vector<int> topology, Threading threading, int threads,
+                         init::Type initializer, act::Type activation) {
+            return Config(30, 128, 30.0F, std::move(topology), threading, 42,
+                          initializer, activation, threads);
+        }), py::arg("topology"), py::arg("thread_state"), py::arg("thread_count"),
+           py::arg("initializer") = init::Type::XavierNormal,
+           py::arg("activation") = act::Type::Sigmoid);
 
     py::class_<Network>(m, "Network")
         .def(py::init<const std::string&, Config&>(), py::arg("model_path"), py::arg("config"))

@@ -15,7 +15,7 @@
             ],
             "xavier_init": true
         },
-        "run results": {
+        "run": {
             "accuracy_progression": [
                 90.91999816894531,
                 92.56999969482422,
@@ -139,7 +139,7 @@
             ],
             "xavier_init": true
         },
-        "run results": {
+        "run": {
             "accuracy_progression": [
                 91.1199951171875,
                 92.41999816894531,

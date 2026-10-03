@@ -9,7 +9,7 @@
 class ThreadPool {
 public:
     ~ThreadPool();
-    void Start();
+    void Start(size_t worker_count);
     void QueueJob(const std::function<void()>& job);
     void QueueBatch(const std::vector<std::function<void()>>& job_batch);
     void Wait();

@@ -1,3 +1,5 @@
+#include <bit>
+#include <cstdint>
 #include <iostream>  // cout, endl
 #include <vector>	 // vector
 #include <assert.h>	 // assert
@@ -41,9 +43,7 @@ Network::Network(Config config, std::shared_ptr<const TrainingData> training_dat
 		int y{sizes[i + 1]};
 		// Left layer has x neurons, right layer has y neurons, so the weight matrix is y rows by x columns
 		// This makes it multipliable with the left layer's output vector (x rows by 1 column)
-		float stddev = config.xavier_init
-                       ? std::sqrt(2.0F / (sizes.front() + sizes.back()))  // where x = fan-in
-                       : 1;
+		float stddev = init::stddev(config.initializer, x, y);
 		Matrix<float> weight(y, x);
 		std::normal_distribution<float> normal(0.0F, stddev);
 		for (auto& value : weight.rix) value = normal(init_rng);
@@ -99,16 +99,19 @@ Network::Network(const std::string& model_path, Config& config) : config(config)
 
 void Network::SGD(bool verbosity)
 {
+	spalten::ExecutionScope backend_execution(spalten::Execution::Single);
+	assert(config.mini_batch_size > 0);
+	assert(config.samples_per_worker > 0);
 	Timer master, train_test_timer;
     float time_train=0.0F, time_test=0.0F;
-	    size_t n_test = test_data->size();	   // Number of testing pairs
-	    size_t n_train = training_data->size(); // Number of training pairs
-    float accuracy=0.0F;
+	size_t n_test = test_data->size();	    // Number of testing pairs
+	size_t n_train = training_data->size(); // Number of training pairs
+    float accuracy = 0.0F;
     std::mt19937 rng(config.random_seed);
 
     auto batch_prep = [&, this]() {
       // Shuffling ensures that a lot of similar data isn't batched together
-      // (due to sorted datasets), 		which can lead to slower descent and
+      // (due to sorted datasets), which can lead to slower descent and
       // overfitting. It also ensures that the model sees a diverse set of
       // examples in each epoch.
 	      std::vector<size_t> indices(n_train);
@@ -181,9 +184,9 @@ void Network::SGD(bool verbosity)
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
             }
-            if (verbosity) 
+            if (verbosity)
             {
-				if (test_data->empty())
+				if (!test_data->empty())
                     std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
                 else
                     std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
@@ -195,10 +198,12 @@ void Network::SGD(bool verbosity)
     // Multi-threaded Training + Testing
     else
     {
-        int n_threads;
-        config.thread_count == 0
-            ? n_threads = std::thread::hardware_concurrency()
-            : n_threads = std::min<int>(std::thread::hardware_concurrency(), config.thread_count);
+        const int hardware_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+        const int requested_threads = config.thread_count == 0
+            ? hardware_threads : std::min(hardware_threads, config.thread_count);
+        const int useful_threads = std::max(1, (config.mini_batch_size + config.samples_per_worker - 1)
+            / config.samples_per_worker);
+        const int n_threads = std::min(requested_threads, useful_threads);
 
         std::vector<Buffers> buffer_list;
         for (int i = 0; i < n_threads; i++) buffer_list.emplace_back(num_layers);
@@ -212,7 +217,7 @@ void Network::SGD(bool verbosity)
         }
 
         ThreadPool pool;
-        pool.Start();
+        pool.Start(n_threads);
 
         for (int j = 0; j < config.epochs; j++)
         {
@@ -227,7 +232,9 @@ void Network::SGD(bool verbosity)
 			{
 				const size_t batch_size = std::min(n_train - batch_start, static_cast<size_t>(config.mini_batch_size));
 				std::vector<size_t> batch_indices(indices.begin() + batch_start, indices.begin() + batch_start + batch_size);
-				auto ranges = create_ranges(batch_indices, n_threads);
+				const int active_threads = std::min(n_threads, std::max(1,
+					static_cast<int>((batch_size + config.samples_per_worker - 1) / config.samples_per_worker)));
+				auto ranges = create_ranges(batch_indices, active_threads);
                 tasks.clear();
 
                 for (size_t t = 0; t < ranges.size(); t++)
@@ -259,9 +266,9 @@ void Network::SGD(bool verbosity)
 				int evaluation_result = evaluate(*test_data);
                 time_test = train_test_timer.elapsed();
                 accuracy = (static_cast<float>(evaluation_result) / n_test) * 100;
-                std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
+                if (verbosity) std::cout << std::format("Epoch {}: {} / {} in {} seconds/epoch", j, evaluation_result, n_test, master.elapsed() / static_cast<float>(j + 1)) << "\n";
             }
-            else
+            else if (verbosity)
                 std::cout << std::format("Epoch {} complete in {} seconds/epoch", j, master.elapsed() / static_cast<float>(j + 1)) << "\n";
 
             observe.update(time_train, time_test, accuracy);
@@ -269,6 +276,7 @@ void Network::SGD(bool verbosity)
         pool.Stop();
     }
     observe.process();
+    if (verbosity) observe.print_results();
 }
 
 void Network::update_mini_batch(const TrainingData& data, const std::vector<size_t>& indices,
@@ -323,7 +331,9 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 		}
 		gemm(1.0F, w, activation, 1.0F, z); 		// [neurons x m]
 		buffers.zs[i] = z;
-		activation = act::sigmoid(z);
+		Matrix<float> next(z.rows, z.cols);
+		act::functions(config.activation).apply(z, next);
+		activation = std::move(next);
 		buffers.activations[i + 1] = activation;
 	}
 
@@ -332,7 +342,7 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 	// Error is the derivative of the cost function wrt. the activations of the output layer,
 	// 		multiplied element-wise by the derivative of the activation function wrt. the weighted input (z) of the output layer.
 	Matrix<float> inter(buffers.zs.back());
-	act::sigmoid_prime(buffers.zs.back(), inter);
+	act::functions(config.activation).derivative(buffers.zs.back(), inter);
 	Matrix<float> error = cost_derivative(buffers.activations.back(), actual_result).hadamard(inter);
 
 	buffers.nabla_b.back() = row_sum(error);
@@ -343,7 +353,7 @@ void Network::backprop(const Matrix<float> &X, const Matrix<float> &actual_resul
 		size_t target = num_param_layers - l;
 		const auto &z = buffers.zs[target];
 		Matrix<float> d_act(z.rows, z.cols);
-		act::sigmoid_prime(z, d_act);
+		act::functions(config.activation).derivative(z, d_act);
 		error = transpose(weights[target + 1]) * error;
 		error = error.hadamard(d_act);
 		buffers.nabla_b[target] = row_sum(error);
@@ -359,9 +369,13 @@ Matrix<float> Network::cost_derivative(const Matrix<float> &output_activations,
 
 Matrix<float> Network::feedforward(Matrix<float> a) const
 {
+	const auto& functions = act::functions(config.activation);
 	for (size_t i = 0; i < num_param_layers; i++)
 	{
-		a = act::sigmoid(weights[i] * a + biases[i]);
+		Matrix<float> z = weights[i] * a + biases[i];
+		Matrix<float> next(z.rows, z.cols);
+		functions.apply(z, next);
+		a = std::move(next);
 	}
 	return a;
 }
@@ -381,25 +395,40 @@ Matrix<float> Network::row_sum(const Matrix<float> &mat)
 
 int Network::evaluate(const TestData& test_data) const
 {
-	std::vector<std::pair<size_t, int>> test_results;
-	test_results.reserve(test_data.size());
+    // ReLU can hide NaNs in its output, so inspect parameters as well.
+    for (const auto* parameters : {&weights, &biases})
+        for (const auto& matrix : *parameters)
+            for (float value : matrix.rix)
+                if ((std::bit_cast<uint32_t>(value) & 0x7f800000U) == 0x7f800000U)
+                    throw std::runtime_error("Non-finite network parameters; training diverged.");
 
-	for (const auto &[x, y] : test_data)
-	{
-		auto output = feedforward(x);
+    constexpr size_t evaluation_batch_size = 256;
+    int sum = 0;
 
-		auto max_it = std::max_element(output.rix.begin(), output.rix.end());
-		size_t argmax = std::distance(output.rix.begin(), max_it);
+    for (size_t start = 0; start < test_data.size(); start += evaluation_batch_size)
+    {
+        const size_t batch_size = std::min(evaluation_batch_size, test_data.size() - start);
+        Matrix<float> inputs(sizes.front(), batch_size);
 
-		test_results.push_back({argmax, y});
-	}
+        for (size_t r = 0; r < inputs.rows; ++r)
+            for (size_t c = 0; c < batch_size; ++c)
+                inputs(r, c) = test_data[start + c].first[r];
 
-	int sum{0};
-	for (const auto &[pred, actual] : test_results)
-	{
-		if (pred == static_cast<size_t>(actual))
-			sum++;
-	}
+        auto output = feedforward(std::move(inputs));
+        // Bit inspection remains valid with the Release build's -ffast-math.
+        for (float value : output.rix)
+            if ((std::bit_cast<uint32_t>(value) & 0x7f800000U) == 0x7f800000U)
+                throw std::runtime_error("Non-finite network output; training diverged.");
+
+        for (size_t c = 0; c < batch_size; ++c)
+        {
+            size_t prediction = 0;
+            for (size_t r = 1; r < output.rows; ++r)
+                if (output(r, c) > output(prediction, c)) prediction = r;
+            if (prediction == static_cast<size_t>(test_data[start + c].second)) ++sum;
+        }
+    }
+
 	return sum;
 }
 

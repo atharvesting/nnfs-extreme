@@ -30,6 +30,7 @@ VPM MNIST_loader::load_training_data(const std::string& img_path,
 	for (size_t i = 0; i < num_samples; i++) {
 		img_file.read(reinterpret_cast<char*>(img_buf.data()), 784 * sizeof(float));
 		label_file.read(reinterpret_cast<char*>(label_buf.data()), 10 * sizeof(float));
+		if (!img_file || !label_file) throw std::runtime_error("Truncated MNIST training data at sample " + std::to_string(i));
 		
 		Matrix<float> img(784, 1);
 		Matrix<float> label(10, 1);
@@ -63,6 +64,8 @@ std::vector<std::pair<Matrix<float>, int>> MNIST_loader::load_test_data(
 	for (size_t i = 0; i < num_samples; i++) {
 		img_file.read(reinterpret_cast<char*>(img_buf.data()), 784 * sizeof(float));
 		label_file.read(reinterpret_cast<char*>(&label_val), sizeof(int));
+		if (!img_file || !label_file) throw std::runtime_error("Truncated MNIST test data at sample " + std::to_string(i));
+		if (label_val < 0 || label_val > 9) throw std::runtime_error("Invalid MNIST test label.");
 
 		Matrix<float> img(784, 1);
 		for (int j = 0; j < 784; j++) img[j] = img_buf[j];

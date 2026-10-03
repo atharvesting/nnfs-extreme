@@ -1,5 +1,55 @@
 # Notes on Performance (started 2026-07-25 01:15)
 
+2026-10-03
+---
+- The overnight benchmark made the testing bottleneck impossible to ignore. After about 8 hours, the harness was
+still at config no. 136. With the heavier 784-512-512-10 topology, each config was taking about 600 seconds for
+30 epochs, with testing alone taking about 374 seconds compared to 223 seconds of training. Testing was eating
+about 63% of the total runtime. The execution policy changes from September helped, but didn't address the
+actual structure of evaluation.
+- The problem was that `evaluate()` fed each of the 10,000 test images through the network individually after
+every epoch. That is 300,000 separate forward passes per config. Every layer multiplied its weights by a
+single-column activation matrix, allocated intermediate matrices and applied the activation function, only to
+repeat all of this for the next image. The innermost column loop in the ikj/gemm implementation had just one
+column to work with, which wasted the opportunity for contiguous operations and weight reuse across samples.
+- Simply changing execution profiles couldn't solve this. `SGD()` kept the matrix backend on `Execution::Single`,
+and even if that were changed, these individual matrix-vector operations were below Spalten's 4-million-operation
+parallel dispatch threshold. The largest one was only 512 * 784 * 1 = 401,408.
+- The fix was to batch evaluation into groups of 128 images, stacking each image into a column of a 784x128
+input matrix. My existing `feedforward()` already supported multiple columns and bias broadcasting, so no new
+inference implementation was required. The resulting output is 10x128, where each column gets its own argmax
+and label comparison. The final batch uses its actual size (16 images for MNIST), and predictions are counted
+directly instead of being stored in another vector for a second pass. The NaN/infinity checks were retained.
+- This brings the forward-pass count down from 10,000 to 79 per epoch. The mathematical workload still exists,
+but each weight is now reused across multiple images and the inner column loop has enough contiguous work to
+benefit from vectorization. This improvement was achieved with sequential evaluation itself.
+- The isolated Release check on 10,000 MNIST images using the 784-512-512-10 topology gave:
+
+| Metric | Individual Evaluation | Batched Evaluation (128) | Improvement |
+| --- | --- | --- | --- |
+| Evaluation Time | 12.809 seconds | 0.438 seconds | ~29.3x Faster (-96.6%) |
+
+- This check used the same initialized weights for both paths. Predictions were also compared across all four
+activations on 137 images (including a partial batch), and the full 10,000-image check matched accuracy for the
+largest topology.
+- A subsequent full 30-epoch run with `Config(30, 32, 0.1F, {784, 512, 512, 10})` gave:
+
+    ```output
+    Total time: 240.892
+    Total training time: 227.858
+    Total testing time: 13.034
+    Average training time/epoch: 7.595
+    Average testing time/epoch: 0.434
+    Maximum accuracy: 93.17%
+    Final accuracy: 93.17%
+    ```
+
+- Compared to the roughly 600-second configs observed overnight, this is about a 60% reduction in total
+training + testing time. This isn't a controlled accuracy comparison because the learning rate/configs differ.
+The isolated evaluation check is the stronger evidence for the speedup. Training itself wasn't accelerated by
+this fix; removing most of the testing cost is what drastically reduced total time. New records carry
+`evaluation_method = "batched_128_v1"` to distinguish their testing times from the old baseline.
+
 2026-09-26
 ---
 - New 98% Milestone using the same 784-128-30-10 topology:

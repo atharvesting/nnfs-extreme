@@ -37,4 +37,40 @@ namespace act {
 	ACTIVATION_FUNC_MAT(leaky_relu_prime)
 #undef ACTIVATION_FUNC_MAT
 
+	const Functions& functions(Type type) {
+		static constexpr std::array table{
+			Functions{sigmoid, sigmoid_prime},
+			Functions{relu, relu_prime},
+			Functions{tanh, tanh_prime},
+			Functions{leaky_relu, leaky_relu_prime},
+		};
+		return table[static_cast<size_t>(type)];
+	}
+
+	const char* name(Type type) {
+		static constexpr std::array names{"sigmoid", "relu", "tanh", "leaky_relu"};
+		return names[static_cast<size_t>(type)];
+	}
+
+}
+
+namespace init {
+	float xavier_normal(int fan_in, int fan_out) {
+		return std::sqrt(2.0F / static_cast<float>(fan_in + fan_out));
+	}
+
+	float lecun_normal(int fan_in, int) {
+		return std::sqrt(1.0F / static_cast<float>(fan_in));
+	}
+
+	float stddev(Type type, int fan_in, int fan_out) {
+		static constexpr std::array<StddevFunction, 2> table{xavier_normal, lecun_normal};
+		return table[static_cast<size_t>(type)](fan_in, fan_out);
+	}
+
+	const char* name(Type type) {
+		static constexpr std::array names{"xavier_normal", "lecun_normal"};
+		return names[static_cast<size_t>(type)];
+	}
+
 }

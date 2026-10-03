@@ -8,20 +8,27 @@
 #include <numeric>   // accumulate
 #include <iostream>
 #include <iomanip>
+#include <filesystem>
+#include <chrono>
+#include <ctime>
+#include <sstream>
+#include <limits>
+#include <bit>
+#include <cstdint>
 
 Config::Config(int epochs, int mini_batch_size, float eta,
                std::vector<int> topology, Threading thread_state,
-               int random_seed, bool xavier_init,
+               int random_seed, init::Type initializer, act::Type activation,
                int thread_count, std::string train_images,
                std::string test_images, std::string train_labels,
-               std::string test_labels, float acc_threshold
+               std::string test_labels, float acc_threshold, int samples_per_worker
                )
     : epochs(epochs), mini_batch_size(mini_batch_size), eta(eta),
       topology(topology), thread_state(thread_state),
-      thread_count(thread_count), train_images(train_images),
+      thread_count(thread_count), samples_per_worker(samples_per_worker), train_images(train_images),
       test_images(test_images), train_labels(train_labels),
       test_labels(test_labels), acc_threshold(acc_threshold),
-      random_seed(random_seed), xavier_init(xavier_init) {}
+      random_seed(random_seed), initializer(initializer), activation(activation) {}
 
 json Config::to_json_object() {
     return json{
@@ -31,8 +38,10 @@ json Config::to_json_object() {
         {"topology", topology},
         {"thread_state", thread_state},
         {"thread_count", thread_count},
+        {"samples_per_worker", samples_per_worker},
         {"random_seed", random_seed},
-        {"xavier_init", xavier_init},
+        {"initializer", init::name(initializer)},
+        {"activation", act::name(activation)},
         {"acc_threshold", acc_threshold}
     };
 }
@@ -44,12 +53,14 @@ BenchConfig::BenchConfig(
     std::vector<std::vector<int>>  topology,
     std::vector<Threading>     thread_state,
     std::vector<int>            random_seed,
-    std::vector<bool>           xavier_init,
-    size_t                     thread_count
+    std::vector<init::Type>     initializer,
+    std::vector<act::Type>      activation,
+    size_t                     thread_count,
+    size_t               samples_per_worker
 ) :
     epochs(epochs), mini_batch_size(mini_batch_size), eta(eta), topology(topology),
-    thread_state(thread_state), random_seed(random_seed), xavier_init(xavier_init),
-    thread_count(thread_count)
+    thread_state(thread_state), random_seed(random_seed), initializer(initializer), activation(activation),
+    thread_count(thread_count), samples_per_worker(samples_per_worker)
     {
         param_options_count = {
             mini_batch_size.size(),
@@ -57,7 +68,8 @@ BenchConfig::BenchConfig(
             topology.size(),
             thread_state.size(),
             random_seed.size(),
-            xavier_init.size()
+            initializer.size(),
+            activation.size()
         };
     }
 
@@ -181,34 +193,86 @@ Benchmark::Benchmark(BenchConfig b_config_)
     : b_config(b_config_), odo(b_config.param_options_count) {}
 
 void Benchmark::run() {
+    if (b_config.epochs == 0 || b_config.epochs > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        b_config.thread_count > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        b_config.samples_per_worker == 0 || b_config.samples_per_worker > static_cast<size_t>(std::numeric_limits<int>::max()))
+        throw std::invalid_argument("Invalid benchmark epochs or worker settings.");
+    for (auto count : b_config.param_options_count)
+        if (count == 0) throw std::invalid_argument("Benchmark parameter lists must not be empty.");
+    for (auto batch : b_config.mini_batch_size)
+        if (batch <= 0) throw std::invalid_argument("Mini-batch sizes must be positive.");
+    for (auto eta : b_config.eta)
+        if (!(eta > 0) || (std::bit_cast<uint32_t>(eta) & 0x7f800000U) == 0x7f800000U) throw std::invalid_argument("Learning rates must be finite and positive.");
+    for (auto activation : b_config.activation)
+        if (static_cast<unsigned>(activation) > static_cast<unsigned>(act::Type::LeakyRelu))
+            throw std::invalid_argument("Invalid activation.");
+    for (auto initializer : b_config.initializer)
+        if (static_cast<unsigned>(initializer) > static_cast<unsigned>(init::Type::LeCunNormal))
+            throw std::invalid_argument("Invalid initializer.");
+    for (auto threading : b_config.thread_state)
+        if (threading != Threading::Single && threading != Threading::Multi)
+            throw std::invalid_argument("Invalid threading mode.");
+    for (const auto& topology : b_config.topology)
+        if (topology.size() < 2 || topology.front() != 784 || topology.back() != 10 ||
+            std::any_of(topology.begin(), topology.end(), [](int n) { return n <= 0; }))
+            throw std::invalid_argument("Benchmark requires a positive MNIST topology (784 -> ... -> 10).");
+
+    const auto now = std::chrono::system_clock::now();
+    const auto timestamp = std::chrono::system_clock::to_time_t(now);
+    const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
+    std::ostringstream filename;
+    filename << "results_" << std::put_time(std::gmtime(&timestamp), "%Y-%m-%d_%H-%M-%S")
+             << '_' << std::setfill('0') << std::setw(3) << milliseconds << "_UTC.jsonl";
+    if (std::filesystem::exists(filename.str()))
+        throw std::runtime_error("Result filename already exists: " + filename.str());
+
     Timer timer;
+
     auto training_data = std::make_shared<const TrainingData>(
         MNIST_loader::load_training_data(config.train_images, config.train_labels, 50000, false));
     auto test_data = std::make_shared<const TestData>(
         MNIST_loader::load_test_data(config.test_images, config.test_labels, 10000));
-    std::ofstream file("results.jsonl");
-    if (!file) throw std::runtime_error("Could not open results.jsonl for writing.");
+
+    std::ofstream file(filename.str());
+    if (!file) throw std::runtime_error("Could not open " + filename.str() + " for writing.");
+
+    std::cout << "Results file: " << filename.str() << '\n';
+    file.exceptions(std::ios::badbit | std::ios::failbit);
     int i = 0;
+
     do {
         i++;
         auto state = odo.get_state();
         config = {
-            30,
+            static_cast<int>(b_config.epochs),
             b_config.mini_batch_size[state[0]],
             b_config.eta[state[1]],
             b_config.topology[state[2]],
             b_config.thread_state[state[3]],
             b_config.random_seed[state[4]],
-            b_config.xavier_init[state[5]],
-            // rest are already initialized and don't need changes
+            b_config.initializer[state[5]],
+            b_config.activation[state[6]],
         };
+        config.thread_count = static_cast<int>(b_config.thread_count);
+        config.samples_per_worker = static_cast<int>(b_config.samples_per_worker);
         std::cout << "Config no = " << i << ", Time = " << timer.elapsed() << "\n";
         print_container(state);
 
         Network net(config, training_data, test_data);
-        net.SGD(false);
+        std::string error;
+        try { net.SGD(false); }
+        catch (const std::runtime_error& e) { error = e.what(); net.observe.process(); }
 
         auto record = net.observe.to_json_object();
+        record["evaluation_method"] = "batched_128_v1";
+        record["status"] = error.empty() ? "completed" : "failed";
+        if (!error.empty()) record["error"] = error;
+        const int hardware_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
+        record["effective_thread_count"] = config.thread_state == Threading::Single ? 1 :
+            std::min(config.thread_count == 0 ? hardware_threads : std::min(hardware_threads, config.thread_count),
+                1 + (config.mini_batch_size - 1) / config.samples_per_worker);
+        record["training_samples"] = training_data->size();
+        record["test_samples"] = test_data->size();
         record["config_no"] = i;
         file << record.dump() << '\n' << std::flush;
 

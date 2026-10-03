@@ -11,7 +11,7 @@
 
 void examples::standard_mnist()
 {
-    Config config(30, 32, 9.0F, {784, 30, 10});
+    Config config(30, 64, 0.5F, {784, 512, 512, 10}, Threading::Multi, 42);
     const std::string thread_state = config.thread_state == Threading::Single ? "Single" : "Multi";
 
     std::cout << "Running standard MNIST example!\n"
