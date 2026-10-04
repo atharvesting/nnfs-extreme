@@ -163,3 +163,16 @@ std::vector<int> Odometer::get_state() const
     return state;
 }
 
+bool Odometer::set_state(std::vector<int> new_state)
+{
+    if (new_state.size() != sizes.size())
+        return false;
+    for (int i = 0; i < new_state.size(); i++)
+    {
+        if (0 > new_state[i] || new_state[i] >= sizes[i])
+            return false;
+    }
+    state = std::move(new_state);
+    return true;
+}
+

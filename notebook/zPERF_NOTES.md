@@ -1,5 +1,64 @@
 # Notes on Performance (started 2026-07-25 01:15)
 
+2026-10-4
+---
+- Reached 98.20% accuracy on a configuration I tried on impulse before running my big bad benchmark.
+    ```output
+    Epoch 0: 8611 / 10000 in 4.435637283 seconds/epoch
+    Epoch 5: 9597 / 10000 in 4.4374465125 seconds/epoch
+    Epoch 10: 9712 / 10000 in 4.436275765090909 seconds/epoch
+    Epoch 15: 9798 / 10000 in 4.4490212530625 seconds/epoch
+    Epoch 20: 9820 / 10000 in 4.44792334747619 seconds/epoch
+    Epoch 25: 9789 / 10000 in 4.454295043923077 seconds/epoch
+    Epoch 29: 9815 / 10000 in 4.4549883968 seconds/epoch
+    ====== Benchmark Results ======
+    Configuration
+    Epochs: 30
+    Mini-batch size: 32
+    Learning rate (eta): 9
+    Topology: 784 -> 512 -> 128 -> 30 -> 10
+    Threading: Single
+    Thread count: 16
+    Results (seconds unless noted)
+    Total time: 133.622
+    Total training time: 124.207
+    Total testing time: 9.415
+    Average training time/epoch: 4.140
+    Average testing time/epoch: 0.314
+    Maximum accuracy: 98.20%
+    Final accuracy: 98.15%
+    Accuracy threshold: 94.00%
+    Epochs to threshold: 3
+    Time to threshold: 13.175 s
+    ```
+- This configuration will definitely go in my benchmark harness and replace {784, 512, 512, 10} on account of mediocre
+performance in most runs.
+- I ran the benchmark overnight and got to configuration number 646/1152 after 9 hours. I terminated it there
+because I needed to work on the laptop. The way the odometer/cartesian product generator works, I can simply plug in
+the last indices state (for eg. {2, 1, 2, 0, 2, 0, 1}) and have it resume from there. The key realization is that I only
+reached configuration no. 136 last time with my totally flawed evaluation code.
+
+    ```
+    Config no = 638, Time = 31411.2
+    {2, 1, 2, 0, 0, 0, 1}
+    Config no = 639, Time = 31524.1
+    {2, 1, 2, 0, 0, 1, 0}
+    Config no = 640, Time = 31641.1
+    {2, 1, 2, 0, 0, 1, 1}
+    Config no = 641, Time = 31754.9
+    {2, 1, 2, 0, 1, 0, 0}
+    Config no = 642, Time = 31874.2
+    {2, 1, 2, 0, 1, 0, 1}
+    Config no = 643, Time = 31987.3
+    {2, 1, 2, 0, 1, 1, 0}
+    Config no = 644, Time = 32104
+    {2, 1, 2, 0, 1, 1, 1}
+    Config no = 645, Time = 32216.8
+    {2, 1, 2, 0, 2, 0, 0}
+    Config no = 646, Time = 32333.4
+    {2, 1, 2, 0, 2, 0, 1}
+    ```
+
 2026-10-03
 ---
 - The overnight benchmark made the testing bottleneck impossible to ignore. After about 8 hours, the harness was

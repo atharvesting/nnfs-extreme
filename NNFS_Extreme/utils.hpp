@@ -73,6 +73,7 @@ public:
     Odometer(std::vector<size_t> sizes);
     bool next();
     std::vector<int> get_state() const;
+    bool set_state(std::vector<int> new_state);
 };
 
 template <typename T>

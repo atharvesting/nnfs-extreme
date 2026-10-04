@@ -15,6 +15,7 @@
 #include <limits>
 #include <bit>
 #include <cstdint>
+#include <stdexcept>
 
 Config::Config(int epochs, int mini_batch_size, float eta,
                std::vector<int> topology, Threading thread_state,
@@ -192,7 +193,7 @@ json Observability::to_json_object()
 Benchmark::Benchmark(BenchConfig b_config_)
     : b_config(b_config_), odo(b_config.param_options_count) {}
 
-void Benchmark::run() {
+void Benchmark::run(std::vector<int> starting_state) {
     if (b_config.epochs == 0 || b_config.epochs > static_cast<size_t>(std::numeric_limits<int>::max()) ||
         b_config.thread_count > static_cast<size_t>(std::numeric_limits<int>::max()) ||
         b_config.samples_per_worker == 0 || b_config.samples_per_worker > static_cast<size_t>(std::numeric_limits<int>::max()))
@@ -240,6 +241,9 @@ void Benchmark::run() {
     file.exceptions(std::ios::badbit | std::ios::failbit);
     int i = 0;
 
+    if (!starting_state.empty() && !odo.set_state(starting_state))
+        throw std::runtime_error("Provided starting state is invalid.");
+
     do {
         i++;
         auto state = odo.get_state();
@@ -260,17 +264,33 @@ void Benchmark::run() {
 
         Network net(config, training_data, test_data);
         std::string error;
-        try { net.SGD(false); }
-        catch (const std::runtime_error& e) { error = e.what(); net.observe.process(); }
+
+        try
+        {
+            net.SGD(false);
+        }
+        catch (const std::runtime_error& e)
+        {
+            error = e.what();
+            net.observe.process();
+        }
 
         auto record = net.observe.to_json_object();
         record["evaluation_method"] = "batched_128_v1";
         record["status"] = error.empty() ? "completed" : "failed";
-        if (!error.empty()) record["error"] = error;
+
+        if (!error.empty())
+            record["error"] = error;
+
         const int hardware_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
-        record["effective_thread_count"] = config.thread_state == Threading::Single ? 1 :
-            std::min(config.thread_count == 0 ? hardware_threads : std::min(hardware_threads, config.thread_count),
-                1 + (config.mini_batch_size - 1) / config.samples_per_worker);
+
+        record["effective_thread_count"] = config.thread_state == Threading::Single
+                                           ? 1
+                                           : std::min(config.thread_count == 0
+                                                      ? hardware_threads
+                                                      : std::min(hardware_threads, config.thread_count),
+                                                            1 + (config.mini_batch_size - 1) / config.samples_per_worker);
+
         record["training_samples"] = training_data->size();
         record["test_samples"] = test_data->size();
         record["config_no"] = i;

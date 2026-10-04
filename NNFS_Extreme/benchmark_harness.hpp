@@ -88,9 +88,9 @@ struct BenchConfig
     BenchConfig(
         size_t                           epochs = 30,
         std::vector<int>        mini_batch_size = {32, 64, 128, 256},
-        std::vector<float>                  eta = {0.1F, 1.0F, 3.0F, 6.0F, 9.0F},
-        std::vector<std::vector<int>>  topology = {{784, 30, 10}, {784, 128, 30, 10}, {784, 512, 512, 10}},
-        std::vector<Threading>     thread_state = {Threading::Single, Threading::Multi},
+        std::vector<float>                  eta = {0.03F, 0.1F, 0.5F, 0.75F, 1.0F, 3.0F, 6.0F, 9.0F},
+        std::vector<std::vector<int>>  topology = {{784, 30, 10}, {784, 128, 30, 10}, {784, 512, 128, 30, 10}},
+        std::vector<Threading>     thread_state = {Threading::Single}, // Threading::Multi reserved for comparing best acc. candidates
         std::vector<int>            random_seed = {42, 84, 168},
         std::vector<init::Type>     initializer = {init::Type::XavierNormal, init::Type::LeCunNormal},
         std::vector<act::Type>       activation = {act::Type::Sigmoid, act::Type::Relu},
@@ -123,5 +123,5 @@ private:
 
 public:
     Benchmark(BenchConfig b_config_);
-    void run();
+    void run(std::vector<int> starting_state = {});
 };
