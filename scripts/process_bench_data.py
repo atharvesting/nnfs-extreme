@@ -53,6 +53,8 @@ def summarize_configurations(data: pd.DataFrame) -> pd.DataFrame:
     aggregations: dict[str, tuple[str, str]] = {
         "mean_peak_accuracy": ("run.max_accuracy", "mean"),
         "mean_final_accuracy": ("run.final_accuracy", "mean"),
+        "mean_time_to_accuracy_threshold": ("run.time_to_accuracy_threshold", "mean"),
+        "mean_epochs_to_accuracy_threshold": ("run.epochs_to_accuracy_threshold", "mean"),
         "mean_total_time": ("run.total_time", "mean"),
         "mean_training_time": ("run.total_training_time", "mean"),
         "mean_testing_time": ("run.total_testing_time", "mean"),
@@ -102,8 +104,12 @@ def accuracy_extremes(summary: pd.DataFrame) -> pd.DataFrame:
 
     return extremes
 
-result_filename = "results_2026-10-02_19-16-59_729_UTC.jsonl"
+result_filename = "data/output/results_2026-10-03_19-40-41_021_UTC_merged.jsonl"
 data = load_data(result_filename)
+# data.to_csv("data/output/full_benchmark_raw.csv")
 summary = summarize_configurations(data)
-extremes = accuracy_extremes(summary)
-print(extremes)
+# extremes = accuracy_extremes(summary)
+# print(summary)
+# print(extremes)
+summary.to_csv("summary.csv")
+# extremes.to_csv("extremes.csv")
